@@ -337,3 +337,52 @@ def test_segment_order_puts_a_low_atom_before_the_first_interval():
     assert r.segments[0].is_atom or r.segments[-1].is_atom or any(s.is_atom for s in r.segments)
     middles = [(s.lower + s.upper) / 2 for s in r.segments]
     assert middles == sorted(middles)
+
+
+def confounded_frame(n=60_000, seed=77, effect=0.10):
+    from scipy.special import expit
+
+    rng = np.random.default_rng(seed)
+    x = rng.normal(size=(n, len(FEATURES)))
+    treatment = (rng.random(n) < expit(0.5 + 1.2 * x[:, 0])).astype(int)
+    outcome = rng.random(n) < expit(-1.5 + 0.9 * x[:, 0] + 0.5 * x[:, 1]) * 0.6 + effect * treatment
+    df = frame(treatment, np.zeros(n), outcome.astype(int))
+    df[FEATURES] = x
+    return df
+
+
+def test_propensity_weighting_removes_confounding_that_the_raw_difference_keeps():
+    from core.propensity import propensity_weighted_effect
+
+    df = confounded_frame()
+    r = propensity_weighted_effect(df, "conversion", max_iter=40)
+    assert r.unadjusted_ate > 0.15
+    assert abs(r.ipw_ate - 0.10) < abs(r.unadjusted_ate - 0.10) / 2
+    assert r.ci_low - 0.02 < 0.10 < r.ci_high + 0.02
+    assert r.share_clipped >= 0 and 0 < r.propensity_min < r.propensity_max < 1
+    assert 0 < r.effective_n_treated <= r.n and 0 < r.effective_n_control <= r.n
+    json.loads(r.to_json())
+
+
+def test_propensity_weighting_agrees_with_the_raw_effect_under_real_randomization():
+    from core.propensity import propensity_weighted_effect
+
+    df = generate_synthetic(n=60_000, seed=88, heterogeneous=False)
+    r = propensity_weighted_effect(df, "conversion", max_iter=30)
+    assert abs(r.ipw_ate - r.unadjusted_ate) < 2.5 * r.std_error
+    raw = average_treatment_effect(df, "conversion")
+    assert r.std_error == pytest.approx(raw.std_error, rel=0.25)
+
+
+def test_propensity_weighting_is_deterministic_and_validates_inputs(synthetic_df):
+    from core.propensity import propensity_weighted_effect
+
+    small = synthetic_df.head(8_000)
+    a = propensity_weighted_effect(small, "visit", max_iter=10, seed=3)
+    b = propensity_weighted_effect(small, "visit", max_iter=10, seed=3)
+    assert a.to_dict() == b.to_dict()
+    for kwargs in ({"features": ["nope"]}, {"n_folds": 1}, {"clip": (0.9, 0.1)}):
+        with pytest.raises(ValueError):
+            propensity_weighted_effect(small, "visit", **kwargs)
+    with pytest.raises(ValueError):
+        propensity_weighted_effect(small[small["treatment"] == 1], "visit")

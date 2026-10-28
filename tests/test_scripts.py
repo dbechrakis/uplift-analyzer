@@ -23,8 +23,11 @@ def test_chunked_full_data_adjustment_matches_the_core_function(small, monkeypat
         assert chunked[outcome]["std_error"] == pytest.approx(direct.std_error, rel=1e-6)
 
 
-def test_full_data_checks_report_structure(small):
+def test_full_data_checks_report_structure(small, monkeypatch):
+    monkeypatch.setattr(validate, "PROPENSITY_ROWS", 6_000)
     checks = validate.full_data_checks(small)
+    assert set(checks["propensity"]) == {"conversion", "visit"}
+    assert checks["propensity"]["visit"]["n"] == 6_000
     assert checks["rows"] == len(small)
     assert checks["control_exposure_rate"] == 0
     assert set(checks["smd"]) == set(f"f{i}" for i in range(12))

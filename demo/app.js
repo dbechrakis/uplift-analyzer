@@ -28,6 +28,7 @@
 
   function renderHeadline() {
     var r = o(), fu = D.full_data.unadjusted[outcome], fa = D.full_data.adjusted[outcome];
+    var fp = (D.full_data.propensity || {})[outcome];
     var z = 1.959964;
     var rows = [
       { name: "Sample, raw difference", v: r.ate.ate, lo: r.ate.ci_low, hi: r.ate.ci_high, c: token("--accent") },
@@ -35,6 +36,7 @@
       { name: "All users, raw difference", v: fu.ate, lo: fu.ci_low, hi: fu.ci_high, c: token("--accent") },
       { name: "All users, covariate-adjusted", v: fa.adjusted_ate, lo: fa.adjusted_ate - z * fa.std_error, hi: fa.adjusted_ate + z * fa.std_error, c: token("--good") }
     ];
+    if (fp) rows.push({ name: "All users, propensity-weighted", v: fp.ipw_ate, lo: fp.ci_low, hi: fp.ci_high, c: token("--good") });
     $("headline-metrics").innerHTML = metric("Control rate", pct(r.control_rate, 3)) +
       metric("Raw effect, all users", pp(fu.ate)) + metric("Adjusted effect, all users", pp(fa.adjusted_ate)) +
       metric("Relative uplift (sample)", (r.relative.relative_uplift >= 0 ? "+" : "") + (r.relative.relative_uplift * 100).toFixed(1) + "%");
@@ -45,11 +47,13 @@
       error_x: { type: "data", symmetric: false, array: rows.map(function (x) { return (x.hi - x.v) * 100; }),
         arrayminus: rows.map(function (x) { return (x.v - x.lo) * 100; }), color: token("--control") }
     }], layout({ xaxis: { title: "Effect on " + outcome + " (percentage points)", gridcolor: token("--line"), zeroline: true, zerolinecolor: token("--control") },
-      yaxis: { autorange: "reversed", automargin: true }, margin: { t: 20, r: 20, b: 50, l: 210 }, height: 300 }), CFG);
+      yaxis: { autorange: "reversed", automargin: true }, margin: { t: 20, r: 20, b: 50, l: 230 }, height: 340 }), CFG);
     var gap = fu.ate - fa.adjusted_ate;
     $("headline-text").textContent = "On all " + num(D.full_rows) + " users the raw effect is " + pp(fu.ate) + " and the covariate-adjusted effect is " +
       pp(fa.adjusted_ate) + ". In a perfectly randomized experiment these would agree; the gap of " + pp(gap) +
-      " reflects the imbalance shown below, so the adjusted figure is the safer reading. The sample estimate can differ from the all-users truth by chance: 95% intervals from 100 independent samples contained the all-users raw effect " +
+      " reflects the imbalance shown below, so the adjusted figure is the safer reading." +
+      (fp ? " A second, independent correction (cross-fitted propensity weighting) gives " + pp(fp.ipw_ate) + ", within " + Math.abs((fp.ipw_ate - fa.adjusted_ate) * 100).toFixed(2) + " pp of the adjusted estimate." : "") +
+      " The sample estimate can differ from the all-users truth by chance: 95% intervals from 100 independent samples contained the all-users raw effect " +
       pct(D.sampling_validation.ci_coverage_of_full_data_ate[outcome], 0) + " of the time.";
   }
 

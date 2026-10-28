@@ -13,6 +13,7 @@ from core import data as data_module
 from core.cace import complier_effect
 from core.data import DATASET_ROWS, DATASET_SHA256, DTYPES, FEATURES, raw_path, sha256_of
 from core.metrics import ate_from_counts, average_treatment_effect, relative_uplift
+from core.propensity import propensity_weighted_effect
 from core.segments import uplift_by_segment
 from core.srm import sample_ratio_check
 
@@ -67,6 +68,17 @@ def full_adjusted_effects(full: pd.DataFrame, outcomes: tuple[str, ...]) -> dict
     return result
 
 
+PROPENSITY_ROWS = 4_000_000
+
+
+def full_data_propensity(full: pd.DataFrame, outcomes: tuple[str, ...], seed: int = 7) -> dict:
+    rng = np.random.default_rng(seed)
+    rows = min(PROPENSITY_ROWS, len(full))
+    subset = full.iloc[rng.permutation(len(full))[:rows]].reset_index(drop=True)
+    subset.attrs["data_source"] = "criteo"
+    return {o: propensity_weighted_effect(subset, o, seed=seed).to_dict() for o in outcomes}
+
+
 def full_data_checks(full: pd.DataFrame) -> dict:
     treated = full[full["treatment"] == 1]
     control = full[full["treatment"] == 0]
@@ -84,6 +96,7 @@ def full_data_checks(full: pd.DataFrame) -> dict:
     }
     adjusted = full_adjusted_effects(full, ("conversion", "visit"))
     cace = {o: complier_effect(full, o).to_dict() for o in ("conversion", "visit")}
+    propensity = full_data_propensity(full, ("conversion", "visit"))
     return {
         "rows": len(full),
         "card_figures": CARD_FIGURES,
@@ -93,6 +106,7 @@ def full_data_checks(full: pd.DataFrame) -> dict:
         "max_abs_smd": max(abs(v) for v in smd.values()),
         "unadjusted": unadjusted,
         "adjusted": adjusted,
+        "propensity": propensity,
         "cace": cace,
         "relative_uplift": {o: relative_uplift(full, o).to_dict() for o in ("conversion", "visit")},
         "sample_ratio": sample_ratio_check(full).to_dict(),

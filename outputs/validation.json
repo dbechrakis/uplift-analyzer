@@ -87,6 +87,48 @@
         "std_error": 0.00013125541434961204
       }
     },
+    "propensity": {
+      "conversion": {
+        "outcome": "conversion",
+        "data_source": "criteo",
+        "n": 4000000,
+        "n_folds": 2,
+        "clip_low": 0.01,
+        "clip_high": 0.99,
+        "share_clipped": 0.0,
+        "propensity_min": 0.5851649250341213,
+        "propensity_max": 0.9724156654661567,
+        "ipw_ate": 0.001013596854557667,
+        "std_error": 6.815023596965753e-05,
+        "ci_low": 0.0008800248465192322,
+        "ci_high": 0.001147168862596102,
+        "confidence_level": 0.95,
+        "unadjusted_ate": 0.001188047661099015,
+        "effective_n_treated": 3399737.854701032,
+        "effective_n_control": 596854.2642219467,
+        "method": "Hajek inverse-propensity weighting with cross-fitted gradient-boosting propensities; linearized standard error that treats the propensity as known (conservative)"
+      },
+      "visit": {
+        "outcome": "visit",
+        "data_source": "criteo",
+        "n": 4000000,
+        "n_folds": 2,
+        "clip_low": 0.01,
+        "clip_high": 0.99,
+        "share_clipped": 0.0,
+        "propensity_min": 0.5851649250341213,
+        "propensity_max": 0.9724156654661567,
+        "ipw_ate": 0.007354575882236883,
+        "std_error": 0.00028865630814580573,
+        "ci_low": 0.006788819914360807,
+        "ci_high": 0.007920331850112958,
+        "confidence_level": 0.95,
+        "unadjusted_ate": 0.010199625232100482,
+        "effective_n_treated": 3399737.854701032,
+        "effective_n_control": 596854.2642219467,
+        "method": "Hajek inverse-propensity weighting with cross-fitted gradient-boosting propensities; linearized standard error that treats the propensity as known (conservative)"
+      }
+    },
     "cace": {
       "conversion": {
         "outcome": "conversion",
@@ -191,5 +233,5 @@
     "familywise_false_positive_rate_bh_10_null_segments": 0.05333333333333334,
     "mean_false_discoveries_per_run": 0.056666666666666664
   },
-  "runtime_seconds": 104
+  "runtime_seconds": 105
 }

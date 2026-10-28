@@ -45,6 +45,7 @@ def build_demo_data(
         out["full_data"] = {
             "unadjusted": {o: full["unadjusted"][o] for o in OUTCOMES},
             "adjusted": full["adjusted"],
+            "propensity": full.get("propensity", {}),
             "cace": full["cace"],
             "max_abs_smd": full["max_abs_smd"],
         }

@@ -251,3 +251,28 @@ class BalanceResult(Serializable):
     confidence_level: float
     joint_imbalance_detected: bool
     rows: list[BalanceRow] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class PropensityResult(Serializable):
+    outcome: str
+    data_source: str
+    n: int
+    n_folds: int
+    clip_low: float
+    clip_high: float
+    share_clipped: float
+    propensity_min: float
+    propensity_max: float
+    ipw_ate: float
+    std_error: float
+    ci_low: float
+    ci_high: float
+    confidence_level: float
+    unadjusted_ate: float
+    effective_n_treated: float
+    effective_n_control: float
+    method: str = (
+        "Hajek inverse-propensity weighting with cross-fitted gradient-boosting propensities; "
+        "linearized standard error that treats the propensity as known (conservative)"
+    )

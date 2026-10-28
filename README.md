@@ -10,7 +10,7 @@ Local-first analytics that measures the **incrementality (uplift)** of a marketi
 and a small **local LLM** that explains the results in plain business language without ever computing a number.
 Zero spend: open data, open-source tools, no cloud, no paid APIs.
 
-**[Open the interactive explorer](https://dbechrakis.github.io/uplift-analyzer/)** (static page, aggregate results only) · [Validation record](VALIDATION.md) · [Run the app locally](#quick-start)
+**[Open the interactive explorer](https://dbechrakis.github.io/uplift-analyzer/)** (static page, aggregate results only) · [Case study](docs/case-study-imperfect-randomization.md) · [Validation record](VALIDATION.md) · [Run the app locally](#quick-start)
 
 ![Overview tab](docs/screenshots/overview.png)
 
@@ -18,12 +18,12 @@ Zero spend: open data, open-source tools, no cloud, no paid APIs.
 
 | Question | Evidence | Decision supported | Boundary |
 |---|---|---|---|
-| Did the treatment cause extra visits and conversions, for whom, and is targeting worth it? | On all 13,979,592 users the raw effect is **+0.115 pp on conversion (+59%)** and **+1.03 pp on visits (+27%)**; adjusting for the features gives +0.100 and +0.773 pp. Only **3.6%** of treated users were exposed, so the effect on users who actually saw the ad is **+3.2 pp** (conversion) and **+28.7 pp** (visit). | Where to look for responders, whether blanket targeting pays, and how big the next test must be. In a scenario of 30 per conversion and 0.05 per contact, targeting everyone loses 15.7k per million users while the model's best 10.5% earns 21.7k. | The file pools several tests and was sub-sampled by Criteo, so effects are benchmark values, not forecasts. Assignment is slightly predictable from the features. Profit is a scenario with assumed value and cost. |
+| Did the treatment cause extra visits and conversions, for whom, and is targeting worth it? | On all 13,979,592 users the raw effect is **+0.115 pp on conversion (+59%)** and **+1.03 pp on visits (+27%)**; adjusting for the features gives +0.100 and +0.773 pp, and cross-fitted propensity weighting gives +0.101 and +0.736 pp. Only **3.6%** of treated users were exposed, so the effect on users who actually saw the ad is **+3.2 pp** (conversion) and **+28.7 pp** (visit). | Where to look for responders, whether blanket targeting pays, and how big the next test must be. In a scenario of 30 per conversion and 0.05 per contact, targeting everyone loses 15.7k per million users while the model's best 10.5% earns 21.7k. | The file pools several tests and was sub-sampled by Criteo, so effects are benchmark values, not forecasts. Assignment is slightly predictable from the features. Profit is a scenario with assumed value and cost. |
 
 ## Why this project is different
 
 * **Statistics that check themselves.** Sample ratio check, covariate balance with a classifier-based joint test, regression adjustment, Benjamini-Hochberg across segments, delta-method intervals, bootstrap intervals on Qini. [VALIDATION.md](VALIDATION.md) records each check, including the defects verification found and the fixes.
-* **A real finding about the data.** The treatment is slightly predictable from the features (AUC 0.508, interval excludes 0.5) even though the sample ratio check passes, and the raw and adjusted effects disagree on the full data. The app shows both and says so.
+* **A real finding about the data.** The treatment is slightly predictable from the features (AUC 0.508, interval excludes 0.5) even though the sample ratio check passes, and the raw and adjusted effects disagree on the full data. Two independent corrections (regression adjustment and propensity weighting) agree and both sit below the raw effect. The app shows the raw and adjusted estimates and says so.
 * **Intent-to-treat versus exposed.** Because only 3.6% of treated users saw the ad, the headline effect hides a 28.7 pp effect on visits among exposed users. A naive "exposed versus control" comparison would overstate it (+38.6 pp on the 500k sample); the instrumental-variable estimate does not.
 * **From effect to decision.** Qini curve, four uplift learners compared with paired bootstrap, a profit-maximizing targeting share, and a sample-size and minimum-detectable-effect planner.
 * **The LLM never computes a number.** It chooses one of eleven validated functions through tool calling, the code computes, and the UI always shows the function called and its raw JSON. A number-grounding check flags any figure in an explanation that is not in a tool result.
@@ -38,9 +38,10 @@ All-users figures come from a streaming pass over the full file; model-based res
 | Control to treated rate | 0.194% to 0.309% | 3.82% to 4.85% |
 | Raw effect (95% CI) | +0.115 pp (0.109 to 0.122) | +1.034 pp (1.006 to 1.063) |
 | Covariate-adjusted effect | +0.100 pp | +0.773 pp |
+| Propensity-weighted effect (95% CI, 4M-user subsample) | +0.101 pp (0.088 to 0.115) | +0.736 pp (0.679 to 0.792) |
 | Effect on exposed users (CACE, 95% CI) | +3.20 pp (3.01 to 3.38) | +28.7 pp (27.9 to 29.5) |
 
-**1. The experiment is nearly, not perfectly, randomized.** 85.00% of users are treated, as designed (p = 0.999), and no standardized difference exceeds 0.05. But a classifier predicts treatment from the features with AUC 0.5078 (95% CI 0.5041 to 0.5120), and the adjusted visit effect is 25% smaller than the raw one. Read the adjusted estimate next to the raw one.
+**1. The experiment is nearly, not perfectly, randomized.** 85.00% of users are treated, as designed (p = 0.999), and no standardized difference exceeds 0.05. But a classifier predicts treatment from the features with AUC 0.5078 (95% CI 0.5041 to 0.5120), and the adjusted visit effect is 25% smaller than the raw one. Cross-fitted propensity weighting, a different method, lands within 0.04 pp of the adjusted visit estimate, so the gap is not an artifact of one model. Read the corrected estimates next to the raw one.
 
 **2. Most of the effect lives in a few users.** On seven of the twelve features, 82% to 99% of users share a single default value; where that group shows a significant effect it is small (conversion +0.05 to +0.10 pp). Small groups with non-default values show much larger effects (up to about +5 pp on conversion in groups of a few thousand users, FDR-adjusted).
 
@@ -124,6 +125,7 @@ Open http://127.0.0.1:8501. The containers cannot reach the internet, so fetch t
 |---|---|
 | `average_treatment_effect` | rate difference, 95% CI (unpooled Wald), two-proportion z-test p-value (pooled) |
 | `regression_adjusted_effect` | Lin (2013) interacted OLS with robust errors, and the variance change versus the raw estimate |
+| `propensity_weighted_effect` | cross-fitted gradient-boosting propensities, Hajek inverse-propensity weighting, overlap diagnostics, linearized standard error |
 | `relative_uplift` | lift versus control with delta-method CI on the log risk ratio |
 | `complier_effect` | intent-to-treat, effect on exposed users (Wald IV, delta-method CI), complier and never-taker rates, naive comparison |
 | `covariate_balance` | standardized differences per feature and a classifier AUC with bootstrap CI |
