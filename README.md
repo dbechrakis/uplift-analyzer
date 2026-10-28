@@ -24,14 +24,14 @@ Zero spend: open data, open-source tools, no cloud, no paid APIs.
 
 * **Statistics that check themselves.** Sample ratio check, covariate balance with a classifier-based joint test, regression adjustment, Benjamini-Hochberg across segments, delta-method intervals, bootstrap intervals on Qini. [VALIDATION.md](VALIDATION.md) records each check, including the defects verification found and the fixes.
 * **A real finding about the data.** The treatment is slightly predictable from the features (AUC 0.508, interval excludes 0.5) even though the sample ratio check passes, and the raw and adjusted effects disagree on the full data. Two independent corrections (regression adjustment and propensity weighting) agree and both sit below the raw effect. The app shows the raw and adjusted estimates and says so.
-* **Intent-to-treat versus exposed.** Because only 3.6% of treated users saw the ad, the headline effect hides a 28.7 pp effect on visits among exposed users. A naive "exposed versus control" comparison would overstate it (+38.6 pp on the 500k sample); the instrumental-variable estimate does not.
+* **Intent-to-treat versus exposed.** Because only 3.6% of treated users saw the ad, the headline effect hides a 28.7 pp effect on visits among exposed users. A naive "exposed versus control" comparison would overstate it (+38.6 pp on the 500k sample). The instrumental-variable estimate does not.
 * **From effect to decision.** Qini curve, four uplift learners compared with paired bootstrap, a profit-maximizing targeting share, and a sample-size and minimum-detectable-effect planner.
 * **The LLM never computes a number.** It chooses one of eleven validated functions through tool calling, the code computes, and the UI always shows the function called and its raw JSON. A number-grounding check flags any figure in an explanation that is not in a tool result.
 * **Hardened and verified deployment:** non-root, read-only containers, `cap_drop: ALL`, an internal network with no egress, a localhost-only port, digest-pinned images, hash-pinned dependencies, `pip-audit` and Trivy in CI.
 
 ## Findings
 
-All-users figures come from a streaming pass over the full file; model-based results (Qini, learners, policy) use the seeded 500,000-user sample, split 70/30 into train and held-out test.
+All-users figures come from a streaming pass over the full file. Model-based results (Qini, learners, policy) use the seeded 500,000-user sample, split 70/30 into train and held-out test.
 
 | All 13,979,592 users | Conversion | Visit |
 |---|---|---|
@@ -43,11 +43,11 @@ All-users figures come from a streaming pass over the full file; model-based res
 
 **1. The experiment is nearly, not perfectly, randomized.** 85.00% of users are treated, as designed (p = 0.999), and no standardized difference exceeds 0.05. But a classifier predicts treatment from the features with AUC 0.5078 (95% CI 0.5041 to 0.5120), and the adjusted visit effect is 25% smaller than the raw one. Cross-fitted propensity weighting, a different method, lands within 0.04 pp of the adjusted visit estimate, so the gap is not an artifact of one model. Read the corrected estimates next to the raw one.
 
-**2. Most of the effect lives in a few users.** On seven of the twelve features, 82% to 99% of users share a single default value; where that group shows a significant effect it is small (conversion +0.05 to +0.10 pp). Small groups with non-default values show much larger effects (up to about +5 pp on conversion in groups of a few thousand users, FDR-adjusted).
+**2. Most of the effect lives in a few users.** On seven of the twelve features, 82% to 99% of users share a single default value. Where that group shows a significant effect, it is small (conversion +0.05 to +0.10 pp). Small groups with non-default values show much larger effects (up to about +5 pp on conversion in groups of a few thousand users, FDR-adjusted).
 
 **3. A model can find them.** The held-out Qini coefficient is 531 (95% CI 386 to 677) for visits and 49 (11 to 86) for conversions. For conversions, the model's top 10% of users captures 75% of all incremental conversions and the top 30% captures 88%. The simple two-model T-learner is not beaten: for conversions the S-learner is significantly worse, and no other learner differs significantly.
 
-**4. Targeting is a scenario, and the break-even is low.** Targeting everyone only pays when a contact costs less than 0.034 per user (value 30 per conversion). Below that, blanket targeting is profitable; above it, only a model-selected subset is.
+**4. Targeting is a scenario, and the break-even is low.** Targeting everyone only pays when a contact costs less than 0.034 per user (value 30 per conversion). Below that, blanket targeting is profitable. Above it, only a model-selected subset is.
 
 **5. Detecting a 10% relative conversion lift at the original 85% treated share would need about 3.35 million users.** The observed +59% is far easier to detect than the lifts most real tests chase.
 
@@ -146,22 +146,22 @@ Qwen3-4B-Instruct-2507 Q4_K_M on llama.cpp, CPU only (4 cores), 100k-row real sa
 
 | Metric | Result |
 |---|---|
-| Right function chosen first | **93.4%** (57 of 61); the same four misses in four separate runs |
+| Right function chosen first | **93.4%** (57 of 61), with the same four misses in four separate runs |
 | Right arguments | **96.7%** (59 of 61) |
 | An answer was produced | 100% |
 | Every number in the answer found in tool output | **72.1%** (44 of 61) |
 | Median seconds per answer | 38.7 |
 
-Tool choice did not vary at all across three earlier runs of the same questions (`evals/results_3runs.json`, 93.4% each time) or the final run (`evals/results.json`, which also stores every tool call for offline rescoring with `python -m app.evaluation --rescore`). Only the wording, and therefore the grounding, varies between runs. An earlier 20-question evaluation with six tools went from 80% to 90% after a prompt change; the harder 61-question set with eleven tools scores 93.4%.
+Tool choice did not vary at all across three earlier runs of the same questions (`evals/results_3runs.json`, 93.4% each time) or the final run (`evals/results.json`, which also stores every tool call for offline rescoring with `python -m app.evaluation --rescore`). Only the wording, and therefore the grounding, varies between runs. An earlier 20-question evaluation with six tools went from 80% to 90% after a prompt change. The harder 61-question set with eleven tools scores 93.4%.
 
 What went wrong, from the recorded answers:
 
 * **Four questions got no tool call.** For "how many users are in the sample?", "what are the baseline rates?", the break-even contact cost and a partial-targeting question, the model said it would need a tool and asked the user to confirm instead of calling it.
-* **Seventeen answers contained a number that is not in any tool result.** The checker caught real errors: the model wrote "+0.192% (192 basis points)" for an effect of 19.2 basis points; it read a complier effect of +5.17 percentage points as "+51.7%"; and it summed 85,041 and 14,959 to 99,999. Other flags were harmless derived values (a 15% control share computed as 100% minus 85%) or the user's own number repeated while refusing a prompt-injection request.
-* **Two no-tool answers quoted "+59%", the example in the system prompt.** The checker flagged both. The example has since been replaced by a neutral value; that change was not re-run locally, and the weekly CI evaluation measures the current prompt.
+* **Seventeen answers contained a number that is not in any tool result.** The checker caught real errors. The model wrote "+0.192% (192 basis points)" for an effect of 19.2 basis points. It read a complier effect of +5.17 percentage points as "+51.7%". It also summed 85,041 and 14,959 to 99,999. Other flags were harmless derived values (a 15% control share computed as 100% minus 85%) or the user's own number repeated while refusing a prompt-injection request.
+* **Two no-tool answers quoted "+59%", the example in the system prompt.** The checker flagged both. The example has since been replaced by a neutral value. That change was not re-run locally, and the weekly CI evaluation measures the current prompt.
 * **The checker cannot catch wrong interpretations of correct numbers.** After a passing sample ratio check the model said the result confirmed "randomness and balance", which a split check cannot show (see the balance finding above).
 
-The `adj-2` and two other answers took 134 to 576 seconds only because the machine was running a test suite at the same time; they do not represent normal latency.
+The `adj-2` and two other answers took 134 to 576 seconds only because the machine was running a test suite at the same time. They do not represent normal latency.
 
 ## Security and hardening
 
@@ -169,8 +169,8 @@ Verified on a running stack, not just written down:
 
 * Containers run as non-root (`10001` for the app and the model server, `101` for nginx), `CapEff` is empty, `no-new-privileges` is on, root filesystems are read-only, with PID and memory limits.
 * App and LLM sit on an `internal: true` network (no DNS, no internet). Only nginx also joins an edge network, and it publishes to `127.0.0.1` only. nginx adds security headers, rate limiting that exempts static assets, and websocket proxying.
-* Dependencies are pinned with hashes and installed with `uv pip sync --require-hashes`; the image build runs `pip-audit --strict`. Base images are pinned by digest.
-* CI: ruff, pytest with a coverage gate, `pip-audit`, hadolint, Trivy image and configuration scans, a compose smoke test with a 300-request asset burst, plus the weekly LLM evaluation. Actions are pinned to commit SHAs with read-only permissions; Dependabot keeps pip, Actions and Docker current.
+* Dependencies are pinned with hashes and installed with `uv pip sync --require-hashes`. The image build runs `pip-audit --strict`. Base images are pinned by digest.
+* CI: ruff, pytest with a coverage gate, `pip-audit`, hadolint, Trivy image and configuration scans, a compose smoke test with a 300-request asset burst, plus the weekly LLM evaluation. Actions are pinned to commit SHAs with read-only permissions. Dependabot keeps pip, Actions and Docker current.
 * Local Trivy scan of the built image: 0 HIGH or CRITICAL findings. See `SECURITY.md`.
 
 ## Project layout
@@ -189,17 +189,17 @@ outputs/     validation.json from the full-data pass
 ## Limitations
 
 * **Benchmark, not a forecast.** The public file pools several incrementality tests and was sub-sampled non-uniformly by Criteo, so the true incrementality level cannot be recovered. Effect sizes must not be used to predict a real campaign.
-* **Randomization is imperfect.** Assignment is slightly predictable from the features. Adjustment corrects for observed features only; unobserved imbalance would remain. Qini and policy results use the raw labels and inherit this.
+* **Randomization is imperfect.** Assignment is slightly predictable from the features. Adjustment corrects for observed features only. Unobserved imbalance would remain. Qini and policy results use the raw labels and inherit this.
 * **The complier analysis rests on an untestable assumption:** the ad affects users only through being exposed.
 * **The targeting profit is a scenario** with assumed value and cost, and the optimum is chosen on the same held-out users, so it is slightly optimistic. Targeting is not a claim about any real campaign.
 * **Samples, not the full data, drive the model results.** Segment groups with non-default feature values are small, so their intervals are wide.
-* **Small-model caveats.** A 4B local model can pick a different but defensible tool, skip a tool call, or misstate a number; the grounding check catches numbers absent from tool output but not wrong interpretations of correct numbers. In the screenshot above the model called the right tool with the right arguments, then described the break-even cost slightly loosely. It is slow on CPU (tens of seconds per answer). The evaluation has 61 questions and indicates behaviour; it is not a benchmark.
-* The uplift learners use default hyperparameters; they are baselines, not tuned production models.
-* The app has no authentication; keep it bound to localhost.
+* **Small-model caveats.** A 4B local model can pick a different but defensible tool, skip a tool call, or misstate a number. The grounding check catches numbers absent from tool output but not wrong interpretations of correct numbers. In the screenshot above the model called the right tool with the right arguments, then described the break-even cost slightly loosely. It is slow on CPU (tens of seconds per answer). The evaluation has 61 questions and indicates behaviour. It is not a benchmark.
+* The uplift learners use default hyperparameters. They are baselines, not tuned production models.
+* The app has no authentication. Keep it bound to localhost.
 
 ## Data license and citation
 
-The Criteo Uplift dataset is released under **CC BY-NC-SA 4.0 (non-commercial)** and is not redistributed here; the static explorer publishes aggregate results only. Please cite:
+The Criteo Uplift dataset is released under **CC BY-NC-SA 4.0 (non-commercial)** and is not redistributed here. The static explorer publishes aggregate results only. Please cite:
 Diemert, Betlei, Renaudin, Amini. *A Large Scale Benchmark for Uplift Modeling*. AdKDD 2018 Workshop, KDD 2018.
 
 Code license: MIT.

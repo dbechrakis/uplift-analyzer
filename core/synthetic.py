@@ -5,7 +5,7 @@ import pandas as pd
 
 from core.data import FEATURES
 
-SYNTHETIC_BANNER = "SYNTHETIC DATA - for tests and demos only, never real results"
+SYNTHETIC_BANNER = "SYNTHETIC DATA: for tests and demos only, never real results"
 
 
 def generate_synthetic(

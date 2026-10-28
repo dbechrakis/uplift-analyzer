@@ -197,7 +197,7 @@ class PolicyResult(Serializable):
     points: list[PolicyPoint] = field(default_factory=list)
     scenario_note: str = (
         "Scenario: value and cost are assumptions, not measured. The profit interval reflects "
-        "sampling noise at the chosen fraction; the fraction itself is chosen on the same "
+        "sampling noise at the chosen fraction. The fraction itself is chosen on the same "
         "held-out users, so the optimum is slightly optimistic."
     )
 
@@ -273,6 +273,6 @@ class PropensityResult(Serializable):
     effective_n_treated: float
     effective_n_control: float
     method: str = (
-        "Hajek inverse-propensity weighting with cross-fitted gradient-boosting propensities; "
-        "linearized standard error that treats the propensity as known (conservative)"
+        "Hajek inverse-propensity weighting with cross-fitted gradient-boosting propensities. "
+        "Linearized standard error that treats the propensity as known (conservative)."
     )

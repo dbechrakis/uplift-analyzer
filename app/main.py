@@ -180,7 +180,7 @@ def render_segments(toolbox: Toolbox, outcome: str, feature: str, n_bins: int) -
 def render_qini(toolbox: Toolbox, outcome: str) -> None:
     st.caption(
         "Fits two gradient-boosting models on a train split and scores a held-out test split. "
-        "Large samples take a while on the first run; results are cached."
+        "Large samples take a while on the first run. Results are cached."
     )
     key = f"qini_{outcome}"
     if st.button("Run Qini analysis", key=f"run_{key}"):
@@ -213,7 +213,7 @@ def render_qini(toolbox: Toolbox, outcome: str) -> None:
 def render_policy(toolbox: Toolbox, outcome: str) -> None:
     st.caption(
         "Scenario planner. Value and cost are assumptions you set, not measurements. "
-        "The model ranks users; the Qini curve says how many extra conversions each share buys."
+        "The model ranks users. The Qini curve says how many extra conversions each share buys."
     )
     cols = st.columns(3)
     audience = cols[0].number_input("Audience size", 1_000, 1_000_000_000, 1_000_000, step=100_000)
@@ -381,7 +381,7 @@ def render_ask(toolbox: Toolbox, outcome: str, use_llm: bool, settings: Settings
         return
     st.caption(
         "The model only chooses which function to run and explains its result. "
-        "Every number comes from the core functions; raw output is shown for each call."
+        "Every number comes from the core functions. Raw output is shown for each call."
     )
     render_chat_history()
     cols = st.columns(len(EXAMPLE_QUESTIONS))

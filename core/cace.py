@@ -20,7 +20,7 @@ def complier_effect(
     check_alpha(alpha)
     check_outcome(outcome)
     if outcome == "exposure":
-        raise ValueError("exposure is the first stage; choose conversion or visit as the outcome")
+        raise ValueError("exposure is the first stage. Choose conversion or visit as the outcome")
     treated = df[df["treatment"] == 1]
     control = df[df["treatment"] == 0]
     if treated.empty or control.empty:

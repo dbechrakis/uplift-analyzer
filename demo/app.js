@@ -50,7 +50,7 @@
       yaxis: { autorange: "reversed", automargin: true }, margin: { t: 20, r: 20, b: 50, l: 230 }, height: 340 }), CFG);
     var gap = fu.ate - fa.adjusted_ate;
     $("headline-text").textContent = "On all " + num(D.full_rows) + " users the raw effect is " + pp(fu.ate) + " and the covariate-adjusted effect is " +
-      pp(fa.adjusted_ate) + ". In a perfectly randomized experiment these would agree; the gap of " + pp(gap) +
+      pp(fa.adjusted_ate) + ". In a perfectly randomized experiment these would agree. The gap of " + pp(gap) +
       " reflects the imbalance shown below, so the adjusted figure is the safer reading." +
       (fp ? " A second, independent correction (cross-fitted propensity weighting) gives " + pp(fp.ipw_ate) + ", within " + Math.abs((fp.ipw_ate - fa.adjusted_ate) * 100).toFixed(2) + " pp of the adjusted estimate." : "") +
       " The sample estimate can differ from the all-users truth by chance: 95% intervals from 100 independent samples contained the all-users raw effect " +
@@ -69,9 +69,9 @@
       shapes: [-0.1, 0.1].map(function (x) { return { type: "line", x0: x, x1: x, y0: 0, y1: 1, yref: "paper", line: { dash: "dash", color: token("--control") } }; }),
       height: 360 }), CFG);
     var worst = rows[rows.length - 1];
-    $("balance-text").textContent = "Largest difference: " + Math.abs(worst.smd).toFixed(3) + " (" + worst.feature + "); " + b.features_over_threshold +
-      " of " + rows.length + " features exceed the usual 0.1 rule of thumb. Yet a classifier predicts treatment from the features with AUC " +
-      b.auc.toFixed(4) + " (95% CI " + b.auc_ci_low.toFixed(4) + " to " + b.auc_ci_high.toFixed(4) + "; 0.5 would be perfectly random), so assignment is " +
+    $("balance-text").textContent = "Largest difference: " + Math.abs(worst.smd).toFixed(3) + " (" + worst.feature + "). Of " + rows.length + " features, " + b.features_over_threshold +
+      " exceed the usual 0.1 rule of thumb. Yet a classifier predicts treatment from the features with AUC " +
+      b.auc.toFixed(4) + " (95% CI " + b.auc_ci_low.toFixed(4) + " to " + b.auc_ci_high.toFixed(4) + "), where 0.5 would be perfectly random. So assignment is " +
       (b.joint_imbalance_detected ? "slightly predictable from the features. A passing sample ratio check does not rule this out." : "not predictable from the features.");
   }
 
@@ -80,7 +80,7 @@
     $("exposure-metrics").innerHTML = metric("Treated users exposed", pct(c.exposure_rate_treated, 1)) + metric("Intent-to-treat effect", pp(c.itt)) +
       metric("Effect on exposed users (CACE)", pp(c.cace, 2)) + metric("Naive exposed vs control", pp(c.naive_exposed_vs_control, 2));
     var t = "Only " + pct(c.exposure_rate_treated, 1) + " of treated users were actually exposed, and no control user ever was. The effect of being assigned is " +
-      pp(c.itt) + "; for users who actually saw the ad it is " + pp(c.cace, 2) + " (95% CI " + (c.cace_ci_low * 100).toFixed(2) + " to " + (c.cace_ci_high * 100).toFixed(2) +
+      pp(c.itt) + ". For users who actually saw the ad it is " + pp(c.cace, 2) + " (95% CI " + (c.cace_ci_low * 100).toFixed(2) + " to " + (c.cace_ci_high * 100).toFixed(2) +
       "). Comparing exposed treated users with all control users gives " + pp(c.naive_exposed_vs_control, 2) + ", which mixes the ad effect with differences between people who get exposed and people who do not.";
     if (c.complier_rate_control != null) {
       t += " Users who get exposed would have converted at " + pct(c.complier_rate_control, 2) + " without the ad, versus " + pct(c.never_taker_rate, 2) + " for treated users who were never exposed.";
@@ -147,7 +147,7 @@
     ], layout({ xaxis: { title: "Share of audience targeted (%)", gridcolor: token("--line") }, yaxis: { title: "Scenario profit", gridcolor: token("--line"), zeroline: true, zerolinecolor: token("--control") },
       legend: { orientation: "h", y: -0.25 }, height: 340 }), CFG);
     $("policy-text").textContent = "Targeting everyone only pays when the cost per contact is below " + breakeven.toFixed(4) + " (this is value x the all-users effect on the held-out split). " +
-      "The optimum is chosen on the same held-out users, so it is slightly optimistic, and no interval is shown here; the app computes a bootstrap interval for any scenario.";
+      "The optimum is chosen on the same held-out users, so it is slightly optimistic, and no interval is shown here. The app computes a bootstrap interval for any scenario.";
   }
 
   function renderDesign() {
@@ -168,7 +168,7 @@
     var s = D.sampling_validation, c = D.code_simulations;
     $("validation-text").innerHTML = "<ul><li>The file matches its published SHA-256 and row count, and reproduces the dataset card's treatment ratio, visit rate and conversion rate.</li>" +
       "<li>100 independent samples of " + num(s.sample_size) + " users: the 95% interval contained the all-users effect " + pct(s.ci_coverage_of_full_data_ate.conversion, 0) + " (conversion) and " +
-      pct(s.ci_coverage_of_full_data_ate.visit, 0) + " (visit) of the time; the sample ratio check raised no false alarm.</li>" +
+      pct(s.ci_coverage_of_full_data_ate.visit, 0) + " (visit) of the time. The sample ratio check raised no false alarm.</li>" +
       "<li>Simulation of the statistics code (" + num(c.runs) + " runs): effect interval coverage " + pct(c.ate_ci_coverage, 1) + ", relative uplift interval " + pct(c.relative_uplift_ci_coverage, 1) +
       ", type I error " + pct(c.type_i_error_at_5_percent, 1) + ", family-wise false positives across 10 null segments with Benjamini-Hochberg " + pct(c.familywise_false_positive_rate_bh_10_null_segments, 1) + ".</li></ul>";
   }

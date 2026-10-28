@@ -15,4 +15,4 @@ Please open a private security advisory on GitHub (Security tab, "Report a vulne
 
 ## Scope
 
-This is a local analytics tool for a public research dataset. It has no authentication layer; keep the published port bound to localhost or put an authenticating reverse proxy in front of it.
+This is a local analytics tool for a public research dataset. It has no authentication layer. Keep the published port bound to localhost or put an authenticating reverse proxy in front of it.

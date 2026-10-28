@@ -66,21 +66,21 @@ def _explain_segments(r: dict[str, Any]) -> str:
 def _explain_qini(r: dict[str, Any]) -> str:
     beats = r["qini_ci_low"] > 0
     verdict = (
-        "the interval excludes zero, so the model ranks users better than random targeting"
+        "The interval excludes zero, so the model ranks users better than random targeting."
         if beats
-        else "the interval includes zero, so there is no clear gain over random targeting"
+        else "The interval includes zero, so there is no clear gain over random targeting."
     )
     return (
         f"A two-model uplift learner trained on {r['n_train']:,} users and evaluated on "
         f"{r['n_test']:,} held-out users gives a Qini coefficient of {r['qini_coefficient']:.1f} "
-        f"(95% bootstrap CI {r['qini_ci_low']:.1f} to {r['qini_ci_high']:.1f}); {verdict}. "
+        f"(95% bootstrap CI {r['qini_ci_low']:.1f} to {r['qini_ci_high']:.1f}). {verdict} "
         f"The coefficient is in incremental {r['outcome']} counts on the test set."
     )
 
 
 def _explain_srm(r: dict[str, Any]) -> str:
     verdict = (
-        "WARNING: the split differs from the design more than chance allows; "
+        "WARNING: the split differs from the design more than chance allows. "
         "results may be unreliable."
         if r["mismatch"]
         else "No sign of a sample ratio problem."
@@ -102,17 +102,17 @@ def _explain_summary(r: dict[str, Any]) -> str:
 def _explain_balance(r: dict[str, Any]) -> str:
     worst = max(r["rows"], key=lambda row: abs(row["smd"]))
     verdict = (
-        "treatment is slightly predictable from the features, so assignment is not perfectly "
-        "random with respect to them; read the covariate-adjusted effect next to the raw one"
+        "Treatment is slightly predictable from the features, so assignment is not perfectly "
+        "random with respect to them. Read the covariate-adjusted effect next to the raw one."
         if r["joint_imbalance_detected"]
-        else "treatment is not predictable from the features, so there is no sign of imbalance"
+        else "Treatment is not predictable from the features, so there is no sign of imbalance."
     )
     return (
         f"The largest standardized mean difference between treated and control is "
-        f"{abs(worst['smd']):.3f} ({worst['feature']}); {r['features_over_threshold']} of "
-        f"{len(r['rows'])} features exceed the usual 0.1 threshold. A classifier predicts "
+        f"{abs(worst['smd']):.3f} ({worst['feature']}). Of the {len(r['rows'])} features, "
+        f"{r['features_over_threshold']} exceed the usual 0.1 threshold. A classifier predicts "
         f"treatment from the features with AUC {r['auc']:.4f} (95% CI {r['auc_ci_low']:.4f} to "
-        f"{r['auc_ci_high']:.4f}; 0.5 means perfectly random): {verdict}."
+        f"{r['auc_ci_high']:.4f}), where 0.5 means perfectly random. {verdict}"
     )
 
 
@@ -166,7 +166,7 @@ def _explain_sample_size(r: dict[str, Any]) -> str:
 
 def _explain_learners(r: dict[str, Any]) -> str:
     different = [row["name"] for row in r["learners"] if row["differs_from_t_learner"]]
-    rows = "; ".join(f"{row['name']} {row['qini_coefficient']:.1f}" for row in r["learners"])
+    rows = ", ".join(f"{row['name']} {row['qini_coefficient']:.1f}" for row in r["learners"])
     verdict = (
         f"Significantly different from the T-learner: {', '.join(different)}."
         if different
