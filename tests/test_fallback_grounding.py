@@ -42,7 +42,7 @@ def test_explanations_state_real_numbers_and_flag_synthetic(toolbox):
 def test_causal_note_only_for_real_randomized_data(toolbox):
     result = run(toolbox, "average_treatment_effect", outcome="visit")
     assert "causal" not in explain("average_treatment_effect", result)
-    assert "randomly assigned" in explain(
+    assert "not forecasts" in explain(
         "average_treatment_effect", {**result, "data_source": "criteo"}
     )
 

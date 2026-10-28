@@ -4,8 +4,9 @@ from typing import Any
 
 SYNTHETIC_NOTE = "Note: this is SYNTHETIC demo data, not a real experiment."
 CAUSAL_NOTE = (
-    "Treatment was randomly assigned in this experiment, so this difference is a causal effect "
-    "of the treatment, for this population and period only."
+    "Treatment was randomly assigned, so this difference is a causal effect for this experiment. "
+    "The public dataset pools several tests and was sub-sampled non-uniformly, so effect sizes "
+    "are benchmark values, not forecasts for a real campaign."
 )
 
 
