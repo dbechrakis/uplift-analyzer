@@ -61,6 +61,7 @@ class SegmentRow(Serializable):
     p_value: float | None
     p_value_adjusted: float | None
     significant: bool
+    is_atom: bool = False
 
 
 @dataclass(frozen=True)
@@ -72,6 +73,7 @@ class SegmentResult(Serializable):
     confidence_level: float
     adjustment: str
     segments: list[SegmentRow] = field(default_factory=list)
+    n_bins_realized: int = 0
 
 
 @dataclass(frozen=True)

@@ -1,7 +1,7 @@
 PY := .venv/bin/python
 COMPOSE := docker compose -f deploy/docker-compose.yml
 
-.PHONY: install lock lint test check run report audit eval fetch-model docker-up docker-up-llm docker-down
+.PHONY: install lock lint test check run report validate export-demo audit eval fetch-model docker-up docker-up-llm docker-down
 
 install:
 	uv venv --python 3.12 .venv
@@ -27,13 +27,19 @@ run:
 report:
 	$(PY) -m core.report --compact
 
+validate:
+	PYTHONPATH=. $(PY) -m core.validate
+
+export-demo:
+	PYTHONPATH=. $(PY) -m core.export_demo
+
 audit:
 	uv venv .audit
 	uv pip install --python .audit/bin/python --require-hashes -r requirements-audit.txt
 	.audit/bin/pip-audit --requirement requirements.txt --require-hashes --disable-pip --strict
 
 eval:
-	PYTHONPATH=. $(PY) -m app.evaluation --output evals/results.json
+	PYTHONPATH=. $(PY) -m app.evaluation --runs 3 --output evals/results.json
 
 fetch-model:
 	deploy/fetch-model.sh

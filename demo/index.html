@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uplift Analyzer Explorer</title>
+<meta name="description" content="Interactive results explorer for incrementality analysis of the Criteo uplift dataset: effects, randomization checks, exposure, segments, uplift targeting and test sizing.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Uplift Analyzer Explorer</h1>
+  <p class="lead">Incrementality of a marketing treatment on the Criteo Uplift dataset: what the treatment did, who it worked for, and what targeting it is worth.</p>
+  <div class="notice" id="notice">Loading results...</div>
+  <div class="bar">
+    <label>Outcome
+      <select id="outcome"><option value="conversion">conversion (purchase)</option><option value="visit">visit (site visit)</option></select>
+    </label>
+  </div>
+</header>
+<main>
+  <section id="headline"><h2>1. How big is the effect?</h2><p class="small">Each row estimates the same thing from a different angle. Intervals are 95%.</p><div class="metrics" id="headline-metrics"></div><div class="chart" id="chart-forest"></div><p id="headline-text"></p></section>
+  <section id="trust"><h2>2. Is the experiment trustworthy?</h2><p id="srm-text"></p><div class="chart" id="chart-balance"></div><p id="balance-text"></p></section>
+  <section id="exposure"><h2>3. Who actually saw the ad?</h2><div class="metrics" id="exposure-metrics"></div><p id="exposure-text"></p></section>
+  <section id="segments"><h2>4. Which users respond?</h2>
+    <div class="bar"><label>Segment by feature<select id="feature"></select></label></div>
+    <div class="chart" id="chart-segments"></div><table id="segment-table"></table></section>
+  <section id="uplift"><h2>5. Can a model find the responders?</h2><div class="chart" id="chart-qini"></div><p id="qini-text"></p><div class="chart" id="chart-learners"></div><p id="learners-text"></p></section>
+  <section id="policy"><h2>6. What is targeting worth? (scenario)</h2>
+    <p class="small">Value and cost are assumptions you set. The profit curve is computed from the held-out Qini curve of the uplift model.</p>
+    <div class="bar">
+      <label>Audience size <input type="number" id="audience" min="1000" step="100000" value="1000000"></label>
+      <label>Value per conversion <input type="number" id="value" min="0.01" step="1" value="30"></label>
+      <label>Cost per contact <input type="number" id="cost" min="0" step="0.01" value="0.05"></label>
+    </div>
+    <div class="metrics" id="policy-metrics"></div><div class="chart" id="chart-policy"></div><p id="policy-text" class="small"></p></section>
+  <section id="design"><h2>7. How big must the next test be?</h2>
+    <div class="bar">
+      <label>Relative lift to detect (%)<input type="number" id="lift" min="1" max="1000" step="1" value="10"></label>
+      <label>Power <input type="range" id="power" min="50" max="99" value="80"><span id="power-out" class="small">80%</span></label>
+      <label>Treated share <input type="range" id="share" min="5" max="95" value="50" step="5"><span id="share-out" class="small">50%</span></label>
+    </div>
+    <div class="metrics" id="design-metrics"></div><p id="design-text" class="small"></p></section>
+  <section id="validation"><h2>How this was checked</h2><div id="validation-text"></div></section>
+</main>
+<footer>
+  <p>Source code, tests and the live local-LLM app: <a href="https://github.com/dbechrakis/uplift-analyzer">github.com/dbechrakis/uplift-analyzer</a>. This page contains only aggregate results; no user-level data is published.</p>
+  <p>Data: Criteo Uplift Prediction dataset, CC BY-NC-SA 4.0. Diemert, Betlei, Renaudin, Amini, <em>A Large Scale Benchmark for Uplift Modeling</em>, AdKDD 2018. Effect sizes are benchmark values, not forecasts for a real campaign.</p>
+</footer>
+<script src="vendor/plotly-basic.min.js"></script>
+<script src="power.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

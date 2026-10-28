@@ -1,10 +1,10 @@
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim@sha256:aa943ce411423c7582288f18707ff66eddcbaeb510502d747a72aeb34f30d159 AS builder
 
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     UV_NO_CACHE=1
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.32 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.32@sha256:df4cae8f3a96d175e2e5f992e597550000edbe78fdc2594d5cd8de1a217f504c /uv /usr/local/bin/uv
 
 WORKDIR /build
 COPY requirements.txt requirements-audit.txt ./
@@ -16,7 +16,7 @@ RUN uv venv /opt/audit \
  && uv pip sync --python /opt/audit/bin/python --require-hashes requirements-audit.txt \
  && /opt/audit/bin/pip-audit --requirement requirements.txt --require-hashes --disable-pip --strict
 
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim@sha256:aa943ce411423c7582288f18707ff66eddcbaeb510502d747a72aeb34f30d159 AS runtime
 
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONPATH=/app \

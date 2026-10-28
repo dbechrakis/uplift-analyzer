@@ -14,7 +14,7 @@ services:
     <<: *hardening
     profiles:
       - llm
-    image: ${LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server}
+    image: ${LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server@sha256:8052c13edd987de8858f8150031e025ac3d66823f09cf3ec8220899c4abce220}
     user: "10001:10001"
     environment:
       HOME: /tmp
@@ -65,7 +65,7 @@ services:
 
   nginx:
     <<: *hardening
-    image: nginxinc/nginx-unprivileged:1.27-alpine
+    image: nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0
     ports:
       - "127.0.0.1:${UPLIFT_PORT:-8501}:8080"
     volumes:

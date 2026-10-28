@@ -1,0 +1,80 @@
+name: LLM evaluation
+
+on:
+  schedule:
+    - cron: "43 3 * * 0"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - app/agent.py
+      - app/tools.py
+      - app/llm_client.py
+      - evals/tool_selection.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: llm-eval
+  cancel-in-progress: false
+
+env:
+  MODEL_FILE: Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+  LLAMA_IMAGE: ghcr.io/ggml-org/llama.cpp:server@sha256:8052c13edd987de8858f8150031e025ac3d66823f09cf3ec8220899c4abce220
+
+jobs:
+  evaluate:
+    name: Tool-selection regression gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - name: Checkout (actions/checkout v7.0.1)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Python 3.12 (actions/setup-python v7.1.0)
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: "3.12"
+      - name: Set up uv (astral-sh/setup-uv v10.3.2)
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e
+      - name: Install dependencies with hash verification
+        run: |
+          uv venv .venv
+          uv pip install --python .venv/bin/python --require-hashes -r requirements.txt
+      - name: Restore model cache (actions/cache v6.1.0)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: models
+          key: model-${{ env.MODEL_FILE }}-v1
+      - name: Fetch and verify model
+        run: deploy/fetch-model.sh
+      - name: Start llama.cpp server
+        run: |
+          docker run -d --name llama -p 127.0.0.1:8080:8080 -v "$PWD/models:/models:ro" \
+            "$LLAMA_IMAGE" --model "/models/$MODEL_FILE" --host 0.0.0.0 --port 8080 \
+            --jinja --ctx-size 8192 --parallel 1
+          for i in $(seq 1 90); do
+            curl -fsS http://127.0.0.1:8080/health && break
+            sleep 5
+          done
+          curl -fsS http://127.0.0.1:8080/health
+      - name: Run evaluation (synthetic data, no dataset download)
+        env:
+          LLAMA_BASE_URL: http://127.0.0.1:8080/v1
+          LLAMA_MODEL_PATH: models/${{ env.MODEL_FILE }}
+          PYTHONPATH: .
+        run: |
+          .venv/bin/python -m app.evaluation --synthetic --sample-size 50000 --runs 1 \
+            --output evals/ci-results.json --min-tool-accuracy 0.70 --min-answered 0.95
+      - name: Upload results (actions/upload-artifact v7.0.2)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: llm-eval-results
+          path: evals/ci-results.json
+          if-no-files-found: ignore
+      - name: Show server logs on failure
+        if: failure()
+        run: docker logs llama | tail -50

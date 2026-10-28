@@ -282,3 +282,58 @@ def test_balance_validates_inputs(synthetic_df):
         covariate_balance(synthetic_df, features=["nope"])
     with pytest.raises(ValueError):
         covariate_balance(synthetic_df[synthetic_df["treatment"] == 1])
+
+
+def atom_frame():
+    rng = np.random.default_rng(12)
+    n = 20_000
+    f0 = np.where(rng.random(n) < 0.6, 5.0, rng.normal(size=n) * 3 + 20)
+    treatment = (rng.random(n) < 0.5).astype(int)
+    conversion = (rng.random(n) < 0.05 + 0.10 * treatment * (f0 == 5.0)).astype(int)
+    df = frame(treatment, np.zeros(n), conversion)
+    df["f0"] = f0
+    return df
+
+
+def test_segments_give_a_dominant_value_its_own_bin():
+    from core.segments import uplift_by_segment
+
+    r = uplift_by_segment(atom_frame(), "f0", n_bins=4)
+    atoms = [s for s in r.segments if s.is_atom]
+    assert len(atoms) == 1 and atoms[0].label.startswith("= 5 (")
+    assert atoms[0].n == pytest.approx(12_000, rel=0.03)
+    assert atoms[0].ate == pytest.approx(0.10, abs=0.03) and atoms[0].significant
+    assert r.n_bins_realized == len(r.segments) == 4
+    others = [s for s in r.segments if not s.is_atom]
+    assert all(abs(s.ate) < 0.03 for s in others)
+    assert sum(s.n for s in r.segments) == 20_000
+    json.loads(r.to_json())
+
+
+def test_segments_without_ties_have_no_atoms(synthetic_df):
+    from core.segments import uplift_by_segment
+
+    r = uplift_by_segment(synthetic_df, "f2", n_bins=5)
+    assert not any(s.is_atom for s in r.segments) and r.n_bins_realized == 5
+    middles = [(s.lower + s.upper) / 2 for s in r.segments]
+    assert middles == sorted(middles)
+
+
+def test_segments_split_even_when_one_value_holds_almost_everything():
+    from core.segments import uplift_by_segment
+
+    df = atom_frame()
+    df["f1"] = np.where(np.arange(len(df)) % 100 == 0, np.linspace(0, 1, len(df)), 3.0)
+    r = uplift_by_segment(df, "f1", n_bins=5)
+    assert r.n_bins_realized >= 2 and r.segments[0].n + sum(s.n for s in r.segments[1:]) == len(df)
+
+
+def test_segment_order_puts_a_low_atom_before_the_first_interval():
+    from core.segments import uplift_by_segment
+
+    r = uplift_by_segment(
+        atom_frame().assign(f0=lambda d: d["f0"] - 100 + 100 * (d["f0"] == 5)), "f0", n_bins=4
+    )
+    assert r.segments[0].is_atom or r.segments[-1].is_atom or any(s.is_atom for s in r.segments)
+    middles = [(s.lower + s.upper) / 2 for s in r.segments]
+    assert middles == sorted(middles)

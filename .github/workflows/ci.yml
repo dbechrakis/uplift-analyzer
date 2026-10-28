@@ -110,6 +110,10 @@ jobs:
           done
           curl -fsS http://127.0.0.1:8501/healthz
           curl -fsS http://127.0.0.1:8501/_stcore/health
+          asset=$(curl -fsS http://127.0.0.1:8501/ | grep -o 'static/js/[^"]*\.js' | head -1)
+          test -n "$asset"
+          failures=$(seq 1 300 | xargs -P 60 -I{} curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8501/${asset}" | grep -vc '^200$' || true)
+          test "$failures" -eq 0
       - name: Show logs on failure
         if: failure()
         run: docker compose -f deploy/docker-compose.yml logs --no-color

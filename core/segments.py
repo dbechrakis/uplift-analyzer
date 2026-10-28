@@ -9,6 +9,23 @@ from core.metrics import ate_from_counts
 from core.results import SegmentResult, SegmentRow
 
 
+def _partition(series: pd.Series, n_bins: int) -> list[tuple[str, float, float, bool, pd.Index]]:
+    shares = series.value_counts(normalize=True)
+    atoms = [v for v, share in shares.items() if share >= 1.0 / n_bins][: n_bins - 1]
+    parts: list[tuple[str, float, float, bool, pd.Index]] = []
+    for value in atoms:
+        mask = series == value
+        label = f"= {float(value):.4g} ({shares[value]:.0%} of users)"
+        parts.append((label, float(value), float(value), True, series.index[mask]))
+    rest = series[~series.isin(atoms)]
+    if len(rest):
+        bins = pd.qcut(rest, q=max(n_bins - len(atoms), 1), duplicates="drop")
+        for interval, chunk in rest.groupby(bins, observed=True):
+            label = f"({interval.left:.4g}, {interval.right:.4g}]"
+            parts.append((label, float(interval.left), float(interval.right), False, chunk.index))
+    return sorted(parts, key=lambda part: (part[1] + part[2]) / 2)
+
+
 def uplift_by_segment(
     df: pd.DataFrame,
     feature: str,
@@ -23,15 +40,16 @@ def uplift_by_segment(
         raise ValueError(f"feature must be one of {FEATURES}")
     if n_bins < 2:
         raise ValueError("n_bins must be at least 2")
-    bins = pd.qcut(df[feature], q=n_bins, duplicates="drop")
+    parts = _partition(df[feature], n_bins)
     rows: list[dict] = []
-    for interval, group in df.groupby(bins, observed=True):
+    for label, lower, upper, is_atom, index in parts:
+        group = df.loc[index]
         treated = group.loc[group["treatment"] == 1, outcome]
         control = group.loc[group["treatment"] == 0, outcome]
         row = {
-            "label": f"({interval.left:.4g}, {interval.right:.4g}]",
-            "lower": float(interval.left),
-            "upper": float(interval.right),
+            "label": label,
+            "lower": lower,
+            "upper": upper,
             "n": len(group),
             "n_treated": len(treated),
             "n_control": len(control),
@@ -41,6 +59,7 @@ def uplift_by_segment(
             "ci_low": None,
             "ci_high": None,
             "p_value": None,
+            "is_atom": is_atom,
         }
         if len(treated) and len(control):
             ate, _, low, high, _, p_value = ate_from_counts(
@@ -76,4 +95,5 @@ def uplift_by_segment(
         confidence_level=1 - alpha,
         adjustment="Benjamini-Hochberg (FDR)",
         segments=segments,
+        n_bins_realized=len(segments),
     )
