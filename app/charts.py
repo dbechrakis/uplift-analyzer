@@ -111,3 +111,88 @@ def qini_figure(result: dict[str, Any]) -> go.Figure:
         legend={"orientation": "h", "y": -0.2},
     )
     return fig
+
+
+def balance_figure(result: dict[str, Any]) -> go.Figure:
+    rows = sorted(result["rows"], key=lambda r: abs(r["smd"]))
+    fig = go.Figure(
+        go.Bar(
+            x=[r["smd"] for r in rows],
+            y=[r["feature"] for r in rows],
+            orientation="h",
+            marker_color=[SIGNIFICANT if abs(r["smd"]) < 0.1 else TREATED for r in rows],
+        )
+    )
+    for bound in (-result["smd_threshold"], result["smd_threshold"]):
+        fig.add_vline(x=bound, line_dash="dash", line_color=CONTROL)
+    fig.update_layout(
+        title="Standardized mean difference, treated minus control (dashed = 0.1 rule of thumb)",
+        xaxis_title="SMD",
+        xaxis_range=[-0.12, 0.12],
+        showlegend=False,
+        margin={"t": 60, "b": 30},
+        height=380,
+    )
+    return fig
+
+
+def policy_figure(result: dict[str, Any]) -> go.Figure:
+    points = result["points"]
+    x = [p["fraction"] * 100 for p in points]
+    fig = go.Figure()
+    fig.add_scatter(
+        x=x,
+        y=[p["profit_model"] for p in points],
+        name="Uplift model",
+        line={"color": TREATED, "width": 3},
+    )
+    fig.add_scatter(
+        x=x,
+        y=[p["profit_random"] for p in points],
+        name="Random targeting",
+        line={"color": CONTROL, "dash": "dash"},
+    )
+    fig.add_hline(y=0, line_color=NEUTRAL)
+    fig.add_scatter(
+        x=[result["best_fraction"] * 100],
+        y=[result["best_profit"]],
+        mode="markers",
+        name="Best share",
+        marker={"size": 13, "color": SIGNIFICANT},
+    )
+    fig.update_layout(
+        title=f"Scenario profit by share of audience targeted ({result['outcome']})",
+        xaxis_title="Share of audience targeted (%)",
+        yaxis_title="Profit",
+        margin={"t": 50, "b": 30},
+        legend={"orientation": "h", "y": -0.2},
+    )
+    return fig
+
+
+def learners_figure(result: dict[str, Any]) -> go.Figure:
+    rows = result["learners"]
+    q = [r["qini_coefficient"] for r in rows]
+    fig = go.Figure(
+        go.Scatter(
+            x=[r["name"] for r in rows],
+            y=q,
+            mode="markers",
+            marker={"size": 12, "color": TREATED},
+            error_y={
+                "type": "data",
+                "symmetric": False,
+                "array": [r["ci_high"] - v for r, v in zip(rows, q, strict=True)],
+                "arrayminus": [v - r["ci_low"] for r, v in zip(rows, q, strict=True)],
+                "color": TREATED,
+            },
+        )
+    )
+    fig.add_hline(y=0, line_dash="dash", line_color=CONTROL)
+    fig.update_layout(
+        title=f"Qini coefficient by uplift learner ({result['outcome']}, 95% bootstrap CI)",
+        yaxis_title="Qini coefficient (incremental responses)",
+        showlegend=False,
+        margin={"t": 60, "b": 30},
+    )
+    return fig

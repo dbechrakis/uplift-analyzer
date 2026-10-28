@@ -20,9 +20,9 @@ def app_test(monkeypatch):
 def test_app_renders_synthetic_with_banner_and_all_tabs(app_test):
     app_test.run()
     assert not app_test.exception
-    assert [t.label for t in app_test.tabs] == ["Overview", "Segments", "Qini", "Ask the data"]
+    assert [t.label for t in app_test.tabs] == app_main.TAB_LABELS
     assert any("SYNTHETIC" in w.value for w in app_test.warning)
-    assert len(app_test.metric) == 4
+    assert len(app_test.metric) >= 5
 
 
 def test_app_is_fully_usable_with_llm_server_off(app_test):

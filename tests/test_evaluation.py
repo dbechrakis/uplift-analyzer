@@ -5,7 +5,7 @@ import pytest
 
 from app.agent import AgentEvent
 from app.evaluation import run_case, score_case, summarize
-from app.tools import TOOL_DEFINITIONS, Toolbox, ToolTrace
+from app.tools import TOOL_DEFINITIONS, Toolbox, ToolTrace, tool_specs
 from core.synthetic import generate_synthetic
 from tests.llm_mock import MockLlmServer, content_chunks, sse, tool_call_chunks
 
@@ -23,7 +23,7 @@ def trace(name, **arguments):
 def test_case_file_is_well_formed_and_covers_every_tool():
     assert len({c["id"] for c in CASES}) == len(CASES) >= 15
     expected = {c["expected_tool"] for c in CASES} - {None, "*"}
-    assert expected == set(TOOL_DEFINITIONS)
+    assert expected == {s["function"]["name"] for s in tool_specs()}
     for case in CASES:
         if case["expected_tool"] not in (None, "*"):
             assert set(case["expected_args"]) <= set(
@@ -90,3 +90,34 @@ def test_run_case_against_mock_server():
     assert result.tool_correct and result.answered and result.grounded
     assert result.called_tools == ["sample_ratio_check"]
     assert pytest.approx(result.seconds, abs=5) == result.seconds
+
+
+def test_also_accept_counts_defensible_alternatives_without_checking_their_args():
+    case = {
+        "id": "x",
+        "question": "q",
+        "expected_tool": "average_treatment_effect",
+        "expected_args": {"outcome": "conversion"},
+        "also_accept": ["relative_uplift"],
+    }
+    alt = score_case(case, [trace("relative_uplift", outcome="visit")], final(), 1.0)
+    assert alt.tool_correct and alt.args_correct
+    primary_wrong_arg = score_case(
+        case, [trace("average_treatment_effect", outcome="visit")], final(), 1.0
+    )
+    assert primary_wrong_arg.tool_correct and not primary_wrong_arg.args_correct
+    assert not score_case(case, [trace("dataset_summary")], final(), 1.0).tool_correct
+
+
+def test_aggregate_reports_mean_spread_and_stability():
+    from app.evaluation import aggregate
+
+    case = {"id": "x", "question": "q", "expected_tool": "dataset_summary", "expected_args": {}}
+    good = score_case(case, [trace("dataset_summary")], final(), 2.0)
+    bad = score_case(case, [], final(), 4.0)
+    summary = aggregate([[good, good], [good, bad], [good, good]])
+    assert summary["runs"] == 3 and summary["cases"] == 2
+    assert summary["tool_selection_accuracy"]["mean"] == pytest.approx(0.833, abs=0.001)
+    assert summary["tool_selection_accuracy"]["min"] == 0.5
+    assert summary["tool_selection_accuracy"]["std"] > 0
+    assert summary["stable_cases"] == 1

@@ -1,0 +1,195 @@
+{
+  "sha256": "2716e1bf0fd157a93b5bf86924d9088419dfbac2022c6cd90030220634f616dc",
+  "sha256_expected": "2716e1bf0fd157a93b5bf86924d9088419dfbac2022c6cd90030220634f616dc",
+  "rows_expected": 13979592,
+  "full_data": {
+    "rows": 13979592,
+    "card_figures": {
+      "treatment_ratio": 0.85,
+      "visit_rate": 0.046992,
+      "conversion_rate": 0.00292
+    },
+    "computed_figures": {
+      "treatment_ratio": 0.8500001287591226,
+      "visit_rate": 0.046992000911042324,
+      "conversion_rate": 0.002916680257907384
+    },
+    "control_exposure_rate": 0.0,
+    "smd": {
+      "f0": -0.006865618372250798,
+      "f1": 0.023994400679302374,
+      "f2": -0.00624099454533799,
+      "f3": -0.04883634026324019,
+      "f4": 0.007965661878540847,
+      "f5": -0.030556830660414907,
+      "f6": -0.04044806888649284,
+      "f7": 0.02126952997581918,
+      "f8": -0.022433335895262342,
+      "f9": 0.02400105773455969,
+      "f10": 0.010563463240729275,
+      "f11": -0.0051595279790242286
+    },
+    "max_abs_smd": 0.04883634026324019,
+    "unadjusted": {
+      "conversion": {
+        "outcome": "conversion",
+        "data_source": "criteo",
+        "n_treated": 11882655,
+        "n_control": 2096937,
+        "rate_treated": 0.0030894610674129645,
+        "rate_control": 0.0019375880152813366,
+        "ate": 0.0011518730521316279,
+        "std_error": 3.437168357507502e-05,
+        "ci_low": 0.0010845057902364738,
+        "ci_high": 0.001219240314026782,
+        "confidence_level": 0.95,
+        "z_statistic": 28.516529408977203,
+        "p_value": 7.30826328583868e-179
+      },
+      "visit": {
+        "outcome": "visit",
+        "data_source": "criteo",
+        "n_treated": 11882655,
+        "n_control": 2096937,
+        "rate_treated": 0.048543360048743316,
+        "rate_control": 0.03820095691954503,
+        "ate": 0.010342403129198284,
+        "std_error": 0.00014631642098864926,
+        "ci_low": 0.010055628213713731,
+        "ci_high": 0.010629178044682837,
+        "confidence_level": 0.95,
+        "z_statistic": 65.24742956249247,
+        "p_value": 0.0
+      },
+      "exposure": {
+        "outcome": "exposure",
+        "data_source": "criteo",
+        "n_treated": 11882655,
+        "n_control": 2096937,
+        "rate_treated": 0.036036727482199896,
+        "rate_control": 0.0,
+        "ate": 0.036036727482199896,
+        "std_error": 5.406873046405671e-05,
+        "ci_low": 0.035930754717800543,
+        "ci_high": 0.03614270024659925,
+        "confidence_level": 0.95,
+        "z_statistic": 279.203495140243,
+        "p_value": 0.0
+      }
+    },
+    "adjusted": {
+      "conversion": {
+        "adjusted_ate": 0.001001656024202429,
+        "std_error": 3.397588490478831e-05
+      },
+      "visit": {
+        "adjusted_ate": 0.007733822440301803,
+        "std_error": 0.00013125541434961204
+      }
+    },
+    "cace": {
+      "conversion": {
+        "outcome": "conversion",
+        "data_source": "criteo",
+        "n_treated": 11882655,
+        "n_control": 2096937,
+        "exposure_rate_treated": 0.036036727482199896,
+        "exposure_rate_control": 0.0,
+        "itt": 0.0011518730521316279,
+        "itt_ci_low": 0.0010845057902364738,
+        "itt_ci_high": 0.001219240314026782,
+        "cace": 0.031963863885825596,
+        "cace_std_error": 0.0009510303724118514,
+        "cace_ci_low": 0.03009987860769465,
+        "cace_ci_high": 0.033827849163956536,
+        "confidence_level": 0.95,
+        "one_sided": true,
+        "complier_rate_control": 0.021820243051859478,
+        "complier_rate_treated": 0.053784106937685074,
+        "never_taker_rate": 0.0011942963966034839,
+        "naive_exposed_vs_control": 0.05184651892240374,
+        "method": "Wald instrumental-variable estimator, delta-method CI"
+      },
+      "visit": {
+        "outcome": "visit",
+        "data_source": "criteo",
+        "n_treated": 11882655,
+        "n_control": 2096937,
+        "exposure_rate_treated": 0.036036727482199896,
+        "exposure_rate_control": 0.0,
+        "itt": 0.010342403129198284,
+        "itt_ci_low": 0.010055628213713731,
+        "itt_ci_high": 0.010629178044682837,
+        "cace": 0.28699618005843747,
+        "cace_std_error": 0.004022446869266047,
+        "cace_ci_low": 0.2791123290649501,
+        "cace_ci_high": 0.29488003105192484,
+        "confidence_level": 0.95,
+        "one_sided": true,
+        "complier_rate_control": 0.127541478858174,
+        "complier_rate_treated": 0.4145376589166114,
+        "never_taker_rate": 0.034861057844541195,
+        "naive_exposed_vs_control": 0.37633670199706637,
+        "method": "Wald instrumental-variable estimator, delta-method CI"
+      }
+    },
+    "relative_uplift": {
+      "conversion": {
+        "outcome": "conversion",
+        "data_source": "criteo",
+        "rate_treated": 0.0030894610674129645,
+        "rate_control": 0.0019375880152813366,
+        "relative_uplift": 0.5944881177252619,
+        "ci_low": 0.5436975782271103,
+        "ci_high": 0.6469497610321502,
+        "confidence_level": 0.95,
+        "method": "delta method on log risk ratio"
+      },
+      "visit": {
+        "outcome": "visit",
+        "data_source": "criteo",
+        "rate_treated": 0.048543360048743316,
+        "rate_control": 0.03820095691954503,
+        "relative_uplift": 0.27073675539019604,
+        "ci_low": 0.26156617437512963,
+        "ci_high": 0.2799739992231647,
+        "confidence_level": 0.95,
+        "method": "delta method on log risk ratio"
+      }
+    },
+    "sample_ratio": {
+      "data_source": "criteo",
+      "n_treated": 11882655,
+      "n_control": 2096937,
+      "observed_share_treated": 0.8500001287591226,
+      "expected_share_treated": 0.85,
+      "chi2_statistic": 1.817775848947767e-06,
+      "p_value": 0.9989242531217909,
+      "alpha": 0.001,
+      "mismatch": false
+    }
+  },
+  "sampling": {
+    "draws": 100,
+    "sample_size": 500000,
+    "ci_coverage_of_full_data_ate": {
+      "conversion": 0.97,
+      "visit": 0.92
+    },
+    "srm_false_alarm_rate": 0.0,
+    "estimate_sd": {
+      "conversion": 0.00017229270912552533,
+      "visit": 0.0007737060016495567
+    }
+  },
+  "code_simulations": {
+    "runs": 2000,
+    "ate_ci_coverage": 0.9445,
+    "relative_uplift_ci_coverage": 0.943,
+    "type_i_error_at_5_percent": 0.046,
+    "fdr_null_runs": 300,
+    "familywise_false_positive_rate_bh_10_null_segments": 0.05333333333333334,
+    "mean_false_discoveries_per_run": 0.056666666666666664
+  },
+  "runtime_seconds": 104
+}

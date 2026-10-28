@@ -37,19 +37,21 @@ def score_case(
     case: dict[str, Any], traces: list[ToolTrace], final: AgentEvent | None, seconds: float
 ) -> CaseResult:
     expected = case["expected_tool"]
+    accepted = {expected, *case.get("also_accept", [])}
     called = [t.name for t in traces]
     if expected == ANY_TOOL:
         tool_correct = True
     elif expected is None:
         tool_correct = not called
     else:
-        tool_correct = bool(called) and called[0] == expected
+        tool_correct = bool(called) and called[0] in accepted
     args_correct = True
     wanted = case.get("expected_args") or {}
     if expected not in (None, ANY_TOOL) and wanted:
-        args_correct = tool_correct and all(
-            traces[0].arguments.get(k) == v for k, v in wanted.items()
-        )
+        if not tool_correct:
+            args_correct = False
+        elif called[0] == expected:
+            args_correct = all(traces[0].arguments.get(k) == v for k, v in wanted.items())
     answered = final is not None and final.kind == "final" and bool(final.text.strip())
     return CaseResult(
         id=case["id"],
@@ -93,40 +95,86 @@ def run_case(case: dict[str, Any], toolbox: Toolbox, client: LlamaClient) -> Cas
     return score_case(case, traces, final, time.perf_counter() - started)
 
 
+def aggregate(runs: list[list[CaseResult]]) -> dict[str, Any]:
+    summaries = [summarize(r) for r in runs]
+    metrics = (
+        "tool_selection_accuracy",
+        "argument_accuracy",
+        "answered_rate",
+        "grounded_rate",
+        "median_seconds",
+    )
+    out: dict[str, Any] = {"runs": len(runs), "cases": summaries[0]["cases"]}
+    for m in metrics:
+        values = [s[m] for s in summaries]
+        out[m] = {
+            "mean": round(statistics.fmean(values), 3),
+            "std": round(statistics.stdev(values), 3) if len(values) > 1 else 0.0,
+            "min": min(values),
+            "max": max(values),
+        }
+    stable = 0
+    for case_runs in zip(*runs, strict=True):
+        flags = {r.tool_correct and r.args_correct for r in case_runs}
+        stable += len(flags) == 1
+    out["stable_cases"] = stable
+    return out
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate tool selection against a live LLM")
     parser.add_argument("--cases", default="evals/tool_selection.json")
     parser.add_argument("--output", default=None)
     parser.add_argument("--sample-size", type=int, default=100_000)
     parser.add_argument("--synthetic", action="store_true")
+    parser.add_argument("--runs", type=int, default=1)
+    parser.add_argument("--min-tool-accuracy", type=float, default=None)
+    parser.add_argument("--min-answered", type=float, default=None)
     args = parser.parse_args()
     settings = Settings.from_env()
     client = LlamaClient(settings)
     if not client.is_available():
         raise SystemExit(f"LLM server not reachable at {settings.base_url}")
-    df = (
-        generate_synthetic(args.sample_size)
-        if args.synthetic
-        else load_criteo_sample(args.sample_size)
-    )
+    if args.synthetic:
+        df = generate_synthetic(args.sample_size)
+    else:
+        df = load_criteo_sample(args.sample_size)
     toolbox = Toolbox(df)
     cases = json.loads(Path(args.cases).read_text())
-    results: list[CaseResult] = []
-    for case in cases:
-        result = run_case(case, toolbox, client)
-        results.append(result)
-        mark = "ok " if result.tool_correct and result.args_correct else "BAD"
-        print(f"{mark} {result.id:<10} {result.called_tools} {result.seconds}s", flush=True)
+    runs: list[list[CaseResult]] = []
+    for number in range(1, args.runs + 1):
+        results: list[CaseResult] = []
+        for case in cases:
+            result = run_case(case, toolbox, client)
+            results.append(result)
+            mark = "ok " if result.tool_correct and result.args_correct else "BAD"
+            print(
+                f"run {number} {mark} {result.id:<10} {result.called_tools} {result.seconds}s",
+                flush=True,
+            )
+        runs.append(results)
+        print(json.dumps(summarize(results)), flush=True)
     report = {
         "model": Path(settings.model_path).name,
         "data_source": df.attrs.get("data_source"),
         "sample_size": len(df),
-        "summary": summarize(results),
-        "results": [asdict(r) for r in results],
+        "aggregate": aggregate(runs),
+        "summaries": [summarize(r) for r in runs],
+        "runs": [[asdict(r) for r in results] for results in runs],
     }
-    print(json.dumps(report["summary"], indent=2))
+    print(json.dumps(report["aggregate"], indent=2))
     if args.output:
         Path(args.output).write_text(json.dumps(report, indent=2))
+    aggregate_report = report["aggregate"]
+    failed = []
+    tool_mean = aggregate_report["tool_selection_accuracy"]["mean"]
+    if args.min_tool_accuracy is not None and tool_mean < args.min_tool_accuracy:
+        failed.append("tool selection accuracy")
+    answered_mean = aggregate_report["answered_rate"]["mean"]
+    if args.min_answered is not None and answered_mean < args.min_answered:
+        failed.append("answered rate")
+    if failed:
+        raise SystemExit(f"Evaluation gate failed: {', '.join(failed)}")
 
 
 if __name__ == "__main__":

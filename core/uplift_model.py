@@ -83,6 +83,25 @@ def fit_t_learner(
     return model_t, model_c
 
 
+def split_holdout(
+    df: pd.DataFrame, outcome: str, test_size: float, seed: int
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    strata = df["treatment"].astype(int) * 2 + df[outcome].astype(int)
+    return train_test_split(df, test_size=test_size, random_state=seed, stratify=strata)
+
+
+def t_learner_scores(
+    train: pd.DataFrame,
+    test: pd.DataFrame,
+    outcome: str,
+    features: list[str],
+    seed: int,
+    max_iter: int,
+) -> np.ndarray:
+    model_t, model_c = fit_t_learner(train, outcome, features, seed, max_iter)
+    return model_t.predict_proba(test[features])[:, 1] - model_c.predict_proba(test[features])[:, 1]
+
+
 def qini_analysis(
     df: pd.DataFrame,
     outcome: str = "conversion",
@@ -101,12 +120,8 @@ def qini_analysis(
     unknown = [f for f in features if f not in FEATURES]
     if unknown:
         raise ValueError(f"Unknown features: {unknown}")
-    strata = df["treatment"].astype(int) * 2 + df[outcome].astype(int)
-    train, test = train_test_split(df, test_size=test_size, random_state=seed, stratify=strata)
-    model_t, model_c = fit_t_learner(train, outcome, features, seed, max_iter)
-    score = (
-        model_t.predict_proba(test[features])[:, 1] - model_c.predict_proba(test[features])[:, 1]
-    )
+    train, test = split_holdout(df, outcome, test_size, seed)
+    score = t_learner_scores(train, test, outcome, features, seed, max_iter)
     y = test[outcome].to_numpy()
     t = test["treatment"].to_numpy()
     x, qini = qini_arrays(y, t, score)

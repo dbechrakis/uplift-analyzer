@@ -7,14 +7,21 @@ from typing import Any
 
 import pandas as pd
 
+from core.adjusted import regression_adjusted_effect
+from core.balance import covariate_balance
+from core.cace import complier_effect
 from core.data import FEATURES, OUTCOMES, describe
+from core.learners import compare_uplift_learners
 from core.metrics import average_treatment_effect, relative_uplift
+from core.policy import targeting_policy
+from core.power import required_sample_size
 from core.segments import uplift_by_segment
 from core.srm import CRITEO_DESIGN_TREATMENT_SHARE, sample_ratio_check
 from core.uplift_model import qini_analysis
 
-CURVE_KEYS = ("curve_x", "curve_qini", "curve_random")
+CURVE_KEYS = ("curve_x", "curve_qini", "curve_random", "points")
 QINI_BOOTSTRAP = 100
+BALANCE_BOOTSTRAP = 50
 
 OUTCOME_PARAM = {
     "type": "string",
@@ -59,10 +66,52 @@ TOOL_DEFINITIONS: dict[str, dict[str, Any]] = {
         },
         "required": ["feature", "outcome"],
     },
+    "covariate_balance": {
+        "description": "Check that treated and control users look alike on the features.",
+        "properties": {},
+        "required": [],
+    },
+    "regression_adjusted_effect": {
+        "description": "Treatment effect adjusted for the features (CUPED-style), tighter CI.",
+        "properties": {"outcome": OUTCOME_PARAM},
+        "required": ["outcome"],
+    },
+    "complier_effect": {
+        "description": "Effect on users who actually saw the ad (CACE) versus the intent-to-treat.",
+        "properties": {"outcome": {**OUTCOME_PARAM, "enum": ["conversion", "visit"]}},
+        "required": ["outcome"],
+    },
     "qini_analysis": {
         "description": "Fit an uplift model and report Qini curve, AUUC and a bootstrap interval.",
         "properties": {"outcome": OUTCOME_PARAM},
         "required": ["outcome"],
+    },
+    "targeting_policy": {
+        "description": "Best share of the audience to target and its profit, given a value per "
+        "conversion and a cost per contact (scenario inputs).",
+        "properties": {
+            "outcome": OUTCOME_PARAM,
+            "value_per_conversion": {"type": "number", "minimum": 0.01, "maximum": 1000000},
+            "cost_per_contact": {"type": "number", "minimum": 0, "maximum": 10000},
+            "audience_size": {"type": "integer", "minimum": 1000, "maximum": 1000000000},
+        },
+        "required": ["outcome"],
+    },
+    "required_sample_size": {
+        "description": "Users needed to detect a relative lift, with the control rate as baseline.",
+        "properties": {
+            "outcome": OUTCOME_PARAM,
+            "relative_lift": {"type": "number", "minimum": 0.001, "maximum": 10},
+            "power": {"type": "number", "minimum": 0.5, "maximum": 0.99},
+            "treated_share": {"type": "number", "minimum": 0.05, "maximum": 0.95},
+        },
+        "required": ["outcome", "relative_lift"],
+    },
+    "compare_uplift_learners": {
+        "description": "Compare four uplift learners on the same holdout (UI only).",
+        "properties": {"outcome": OUTCOME_PARAM},
+        "required": ["outcome"],
+        "expose_to_llm": False,
     },
 }
 
@@ -110,6 +159,7 @@ def tool_specs() -> list[dict]:
             },
         }
         for name, definition in TOOL_DEFINITIONS.items()
+        if definition.get("expose_to_llm", True)
     ]
 
 
@@ -171,6 +221,43 @@ class Toolbox:
                 n_bins=args.get("n_bins", 5),
                 outcome=args["outcome"],
                 data_source=source,
+            ).to_dict()
+        if name == "covariate_balance":
+            return covariate_balance(
+                df, n_bootstrap=BALANCE_BOOTSTRAP, data_source=source
+            ).to_dict()
+        if name == "regression_adjusted_effect":
+            return regression_adjusted_effect(df, args["outcome"], data_source=source).to_dict()
+        if name == "complier_effect":
+            return complier_effect(df, args["outcome"], data_source=source).to_dict()
+        if name == "targeting_policy":
+            return targeting_policy(
+                df,
+                args["outcome"],
+                audience_size=args.get("audience_size", 1_000_000),
+                value_per_conversion=args.get("value_per_conversion", 30.0),
+                cost_per_contact=args.get("cost_per_contact", 0.05),
+                n_bootstrap=QINI_BOOTSTRAP,
+                data_source=source,
+            ).to_dict()
+        if name == "required_sample_size":
+            control = df.loc[df["treatment"] == 0, args["outcome"]]
+            baseline = float(control.mean())
+            result = required_sample_size(
+                baseline,
+                relative_lift=args["relative_lift"],
+                power=args.get("power", 0.8),
+                treated_share=args.get("treated_share", 0.5),
+            )
+            return {
+                **result.to_dict(),
+                "outcome": args["outcome"],
+                "data_source": source,
+                "baseline_source": "control-group rate in the loaded sample",
+            }
+        if name == "compare_uplift_learners":
+            return compare_uplift_learners(
+                df, args["outcome"], n_bootstrap=QINI_BOOTSTRAP, data_source=source
             ).to_dict()
         return qini_analysis(
             df, outcome=args["outcome"], n_bootstrap=QINI_BOOTSTRAP, data_source=source

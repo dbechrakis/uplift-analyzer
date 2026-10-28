@@ -27,6 +27,8 @@ def test_every_tool_has_a_rule_based_explanation(toolbox, monkeypatch):
             args["outcome"] = "conversion"
         if "feature" in definition["properties"]:
             args["feature"] = "f0"
+        if "relative_lift" in definition["properties"]:
+            args["relative_lift"] = 0.2
         text = explain(name, run(toolbox, name, **args))
         assert isinstance(text, str) and len(text) > 40
 
