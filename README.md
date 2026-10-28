@@ -142,7 +142,24 @@ Every function returns a frozen dataclass that is JSON serializable and carries 
 `make eval` runs 61 questions against the live model, three times, and scores tool choice, arguments, whether an answer was produced, and number grounding. A weekly workflow repeats it in CI against the real model with a regression gate.
 Qwen3-4B-Instruct-2507 Q4_K_M on llama.cpp, CPU only (4 cores), 100k-row real sample.
 
-EVAL_TABLE
+| Metric | Result |
+|---|---|
+| Right function chosen first | **93.4%** (57 of 61); the same four misses in four separate runs |
+| Right arguments | **96.7%** (59 of 61) |
+| An answer was produced | 100% |
+| Every number in the answer found in tool output | **72.1%** (44 of 61) |
+| Median seconds per answer | 38.7 |
+
+Tool choice did not vary at all across three earlier runs of the same questions (`evals/results_3runs.json`, 93.4% each time) or the final run (`evals/results.json`, which also stores every tool call for offline rescoring with `python -m app.evaluation --rescore`). Only the wording, and therefore the grounding, varies between runs. An earlier 20-question evaluation with six tools went from 80% to 90% after a prompt change; the harder 61-question set with eleven tools scores 93.4%.
+
+What went wrong, from the recorded answers:
+
+* **Four questions got no tool call.** For "how many users are in the sample?", "what are the baseline rates?", the break-even contact cost and a partial-targeting question, the model said it would need a tool and asked the user to confirm instead of calling it.
+* **Seventeen answers contained a number that is not in any tool result.** The checker caught real errors: the model wrote "+0.192% (192 basis points)" for an effect of 19.2 basis points; it read a complier effect of +5.17 percentage points as "+51.7%"; and it summed 85,041 and 14,959 to 99,999. Other flags were harmless derived values (a 15% control share computed as 100% minus 85%) or the user's own number repeated while refusing a prompt-injection request.
+* **Two no-tool answers quoted "+59%", the example in the system prompt.** The checker flagged both. The example has since been replaced by a neutral value; that change was not re-run locally, and the weekly CI evaluation measures the current prompt.
+* **The checker cannot catch wrong interpretations of correct numbers.** After a passing sample ratio check the model said the result confirmed "randomness and balance", which a split check cannot show (see the balance finding above).
+
+The `adj-2` and two other answers took 134 to 576 seconds only because the machine was running a test suite at the same time; they do not represent normal latency.
 
 ## Security and hardening
 

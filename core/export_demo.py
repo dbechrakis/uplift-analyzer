@@ -19,7 +19,14 @@ from core.uplift_model import qini_analysis, split_holdout
 OUTCOMES = ("conversion", "visit")
 
 
-def build_demo_data(sample_size: int, seed: int, validation_path: Path) -> dict:
+def build_demo_data(
+    sample_size: int,
+    seed: int,
+    validation_path: Path,
+    qini_bootstrap: int = 200,
+    learner_bootstrap: int = 100,
+    max_iter: int = 100,
+) -> dict:
     df = load_criteo_sample(sample_size, seed)
     started = time.time()
     validation = json.loads(validation_path.read_text()) if validation_path.exists() else None
@@ -45,7 +52,13 @@ def build_demo_data(sample_size: int, seed: int, validation_path: Path) -> dict:
         out["code_simulations"] = validation["code_simulations"]
     for outcome in OUTCOMES:
         _, test = split_holdout(df, outcome, 0.3, 42)
-        qini = qini_analysis(df, outcome=outcome, n_bootstrap=200, n_curve_points=201).to_dict()
+        qini = qini_analysis(
+            df,
+            outcome=outcome,
+            n_bootstrap=qini_bootstrap,
+            n_curve_points=201,
+            max_iter=max_iter,
+        ).to_dict()
         out["outcomes"][outcome] = {
             "control_rate": float(df.loc[df["treatment"] == 0, outcome].mean()),
             "ate": average_treatment_effect(df, outcome).to_dict(),
@@ -60,7 +73,9 @@ def build_demo_data(sample_size: int, seed: int, validation_path: Path) -> dict:
                 "n_test": len(test),
                 "treated_share_test": float(test["treatment"].mean()),
             },
-            "learners": compare_uplift_learners(df, outcome, n_bootstrap=100).to_dict(),
+            "learners": compare_uplift_learners(
+                df, outcome, n_bootstrap=learner_bootstrap, max_iter=max_iter
+            ).to_dict(),
         }
     out["runtime_seconds"] = round(time.time() - started)
     return out

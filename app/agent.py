@@ -26,7 +26,7 @@ SYSTEM_PROMPT = (
     "average_treatment_effect for the plain effect. "
     "Copy numbers exactly as they appear in tool results, keep the outcome and group names "
     "straight, and never combine or recompute them. Values in results are fractions: write 0.01 "
-    "as 1% and a relative uplift of 0.59 as +59% (never as 0.59 times). Treatment was randomised "
+    "as 1% and a relative uplift of 0.07 as +7% (never as 0.07 times). Treatment was randomised "
     "inside the original tests, but groups are not perfectly balanced, so mention covariate "
     "adjustment when it matters and never claim more than the randomized comparison supports. "
     "If a result has data_source 'synthetic', say it is synthetic demo data. Profit results are "

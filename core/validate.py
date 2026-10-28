@@ -16,6 +16,7 @@ from core.metrics import ate_from_counts, average_treatment_effect, relative_upl
 from core.segments import uplift_by_segment
 from core.srm import sample_ratio_check
 
+ADJUST_CHUNK = 1_000_000
 CARD_FIGURES = {"treatment_ratio": 0.85, "visit_rate": 0.046992, "conversion_rate": 0.00292}
 
 
@@ -36,7 +37,7 @@ def full_adjusted_effects(full: pd.DataFrame, outcomes: tuple[str, ...]) -> dict
     n = len(full)
     gram = np.zeros((k, k))
     xty = {o: np.zeros(k) for o in outcomes}
-    chunk = 1_000_000
+    chunk = ADJUST_CHUNK
 
     def design(block: pd.DataFrame) -> np.ndarray:
         x = block[FEATURES].to_numpy(dtype=np.float64) - means
@@ -127,7 +128,7 @@ def sample_coverage(full: pd.DataFrame, truth: dict, draws: int, size: int, seed
     }
 
 
-def simulate_code_correctness(seed: int = 7, runs: int = 2000) -> dict:
+def simulate_code_correctness(seed: int = 7, runs: int = 2000, fdr_runs: int = 300) -> dict:
     rng = np.random.default_rng(seed)
     n_t, n_c, p_c, effect = 4000, 1000, 0.05, 0.02
     ate_hits = rel_hits = type1 = 0
@@ -150,7 +151,7 @@ def simulate_code_correctness(seed: int = 7, runs: int = 2000) -> dict:
         null_t = rng.binomial(n_t, p_c)
         null_c = rng.binomial(n_c, p_c)
         type1 += ate_from_counts(n_t, null_t, n_c, null_c)[5] < 0.05
-    fdr_runs, false_discoveries, discoveries = 300, 0, 0
+    false_discoveries, discoveries = 0, 0
     for _ in range(fdr_runs):
         n = 20_000
         frame = pd.DataFrame(

@@ -64,7 +64,12 @@ Equivalence and known-answer tests (`tests/`):
 
 ## Language-model evaluation
 
-See the table in the README and the raw runs in `evals/results.json`. 61 questions, 3 runs, real model on CPU.
+Real Qwen3-4B-Instruct-2507 Q4_K_M on llama.cpp, CPU only, 61 questions (`evals/tool_selection.json`).
+
+- Tool choice: 93.4% (57 of 61) in each of three runs (`evals/results_3runs.json`) and in the final run (`evals/results.json`); argument accuracy 96.7%; every question answered.
+- Grounding with the final checker: 72.1% of answers have every number traceable to a tool result. Earlier runs with a stricter checker scored 64% to 71%; the checker was corrected after review to read numbers inside segment labels and to accept scientific notation rounded to one digit, then the evaluation was rerun with stored traces.
+- Failures found: four questions answered without calling a tool; 10-fold unit errors ("192 basis points" for 19.2, "+51.7%" for +5.17 pp); an addition error (99,999 for 100,000); two answers quoting the +59% example from the system prompt, which was then replaced by a neutral value without a local rerun.
+- Limits: three answers (134 to 576 seconds) were slowed by a concurrent test run, so latency is not clean for them.
 
 ## Limits of this validation
 
