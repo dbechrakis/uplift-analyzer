@@ -80,3 +80,10 @@ def test_grounding_flags_invented_numbers_and_ignores_names_and_thresholds():
 
 def test_grounding_uses_tool_arguments_too():
     assert ungrounded_numbers("Using 7 bins.", {}, {"n_bins": 7}) == []
+
+
+def test_grounding_accepts_true_p_value_bounds_only():
+    result = {"p_value": 1e-46}
+    assert ungrounded_numbers("Highly significant (p < 0.0001).", result) == []
+    assert ungrounded_numbers("Highly significant (p < 0.0001).", {"p_value": 0.5}) == ["0.0001"]
+    assert ungrounded_numbers("About 0.0003 of users.", result) == ["0.0003"]

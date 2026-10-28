@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 from typing import Any
 
@@ -42,6 +43,15 @@ def _matches(number: float, token: str, forms: list[float]) -> bool:
     return any(abs(number - f) <= tolerance for f in forms)
 
 
+def _is_bound(number: float, text: str, start: int, forms: list[float]) -> bool:
+    if "<" not in text[max(0, start - 3) : start] or number <= 0:
+        return False
+    exponent = math.log10(number)
+    if abs(exponent - round(exponent)) > 1e-9 or not -8 <= round(exponent) <= 0:
+        return False
+    return any(0 < f < number for f in forms)
+
+
 def ungrounded_numbers(text: str, *sources: Any) -> list[str]:
     forms = known_values(*sources)
     flagged: list[str] = []
@@ -52,6 +62,8 @@ def ungrounded_numbers(text: str, *sources: Any) -> list[str]:
         except ValueError:
             continue
         if number in ALLOWED_CONSTANTS or abs(number) in ALLOWED_CONSTANTS:
+            continue
+        if _is_bound(abs(number), text, match.start(), forms):
             continue
         if not _matches(abs(number), token.lstrip("+-"), forms) and token not in flagged:
             flagged.append(token)
