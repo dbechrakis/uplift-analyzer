@@ -41,12 +41,12 @@ TOOL_DEFINITIONS: dict[str, dict[str, Any]] = {
         "required": [],
     },
     "average_treatment_effect": {
-        "description": "Average treatment effect (rate difference) with CI and p-value.",
+        "description": "Absolute difference in rates (treated minus control) with CI and p-value.",
         "properties": {"outcome": OUTCOME_PARAM},
         "required": ["outcome"],
     },
     "relative_uplift": {
-        "description": "Relative uplift versus control with a confidence interval.",
+        "description": "Percentage change versus the control rate, with a confidence interval.",
         "properties": {"outcome": OUTCOME_PARAM},
         "required": ["outcome"],
     },

@@ -1,0 +1,85 @@
+name: uplift-analyzer
+
+x-hardening: &hardening
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  read_only: true
+  restart: unless-stopped
+  pids_limit: 256
+
+services:
+  llama:
+    <<: *hardening
+    profiles:
+      - llm
+    image: ${LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server}
+    user: "10001:10001"
+    environment:
+      HOME: /tmp
+      LLAMA_CACHE: /tmp
+    command:
+      - --model
+      - /models/${MODEL_FILE:-Qwen3-4B-Instruct-2507-Q4_K_M.gguf}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8081"
+      - --jinja
+      - --ctx-size
+      - "8192"
+      - --parallel
+      - "1"
+    volumes:
+      - ../models:/models:ro
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
+    networks:
+      - backend
+    mem_limit: ${LLAMA_MEM_LIMIT:-6g}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8081/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 120s
+      retries: 5
+
+  app:
+    <<: *hardening
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: uplift-analyzer:local
+    environment:
+      LLAMA_BASE_URL: http://llama:8081/v1
+      LLAMA_MODEL_PATH: /models/${MODEL_FILE:-Qwen3-4B-Instruct-2507-Q4_K_M.gguf}
+      UPLIFT_DATA_DIR: /data
+    volumes:
+      - ../data:/data
+    tmpfs:
+      - /tmp:size=128m,noexec,nosuid
+    networks:
+      - backend
+    mem_limit: ${APP_MEM_LIMIT:-4g}
+
+  nginx:
+    <<: *hardening
+    image: nginxinc/nginx-unprivileged:1.27-alpine
+    ports:
+      - "127.0.0.1:${UPLIFT_PORT:-8501}:8080"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    tmpfs:
+      - /tmp:size=32m,noexec,nosuid
+    networks:
+      - backend
+      - edge
+    mem_limit: 256m
+    depends_on:
+      - app
+
+networks:
+  backend:
+    internal: true
+  edge:
