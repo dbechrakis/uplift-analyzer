@@ -10,6 +10,7 @@ from typing import Any
 
 from app.agent import AgentEvent, run_agent
 from app.config import Settings
+from app.grounding import ungrounded_numbers
 from app.llm_client import LlamaClient
 from app.tools import Toolbox, ToolTrace
 from core.data import load_criteo_sample
@@ -31,6 +32,8 @@ class CaseResult:
     grounded: bool
     seconds: float
     answer: str
+    unverified_numbers: list[str] | None = None
+    traces: list[dict] | None = None
 
 
 def score_case(
@@ -65,6 +68,16 @@ def score_case(
         grounded=final is not None and not final.unverified_numbers,
         seconds=round(seconds, 1),
         answer=final.text if final is not None else "",
+        unverified_numbers=list(final.unverified_numbers) if final is not None else [],
+        traces=[
+            {
+                "name": t.name,
+                "arguments": t.arguments,
+                "error": t.error,
+                "result": json.loads(t.llm_payload()) if t.error is None else None,
+            }
+            for t in traces
+        ],
     )
 
 
@@ -93,6 +106,25 @@ def run_case(case: dict[str, Any], toolbox: Toolbox, client: LlamaClient) -> Cas
         if event.kind in ("final", "limit", "error"):
             final, traces = event, event.traces
     return score_case(case, traces, final, time.perf_counter() - started)
+
+
+def rescore(path: Path) -> dict[str, Any]:
+    report = json.loads(path.read_text())
+    runs = []
+    for run in report["runs"]:
+        rescored = []
+        for item in run:
+            sources = [t["result"] for t in item["traces"] if t["result"]]
+            arguments = [t["arguments"] for t in item["traces"]]
+            flagged = ungrounded_numbers(item["answer"], sources, arguments)
+            item = {**item, "unverified_numbers": flagged, "grounded": not flagged}
+            rescored.append(item)
+        runs.append(rescored)
+    report["runs"] = runs
+    results = [[CaseResult(**r) for r in run] for run in runs]
+    report["summaries"] = [summarize(r) for r in results]
+    report["aggregate"] = aggregate(results)
+    return report
 
 
 def aggregate(runs: list[list[CaseResult]]) -> dict[str, Any]:
@@ -130,7 +162,14 @@ def main() -> None:
     parser.add_argument("--runs", type=int, default=1)
     parser.add_argument("--min-tool-accuracy", type=float, default=None)
     parser.add_argument("--min-answered", type=float, default=None)
+    parser.add_argument("--rescore", default=None, help="recompute grounding from stored traces")
     args = parser.parse_args()
+    if args.rescore:
+        report = rescore(Path(args.rescore))
+        print(json.dumps(report["aggregate"], indent=2))
+        if args.output:
+            Path(args.output).write_text(json.dumps(report, indent=2))
+        return
     settings = Settings.from_env()
     client = LlamaClient(settings)
     if not client.is_available():

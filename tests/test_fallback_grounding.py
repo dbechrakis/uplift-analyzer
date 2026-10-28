@@ -89,3 +89,14 @@ def test_grounding_accepts_true_p_value_bounds_only():
     assert ungrounded_numbers("Highly significant (p < 0.0001).", result) == []
     assert ungrounded_numbers("Highly significant (p < 0.0001).", {"p_value": 0.5}) == ["0.0001"]
     assert ungrounded_numbers("About 0.0003 of users.", result) == ["0.0003"]
+
+
+def test_grounding_reads_numbers_embedded_in_string_labels():
+    result = {"segments": [{"label": "= 4.68 (82% of users)", "n": 409162}]}
+    assert ungrounded_numbers("The default group, 82% of users, sits at 4.68.", result) == []
+    assert ungrounded_numbers("It covers 61% of users.", result) == ["61"]
+
+
+def test_grounding_tolerates_scientific_notation_rounded_to_one_digit():
+    assert ungrounded_numbers("p was about 4e-6.", {"p": 3.97e-6}) == []
+    assert ungrounded_numbers("p was about 9e-6.", {"p": 3.97e-6}) == ["9e-6"]

@@ -121,3 +121,32 @@ def test_aggregate_reports_mean_spread_and_stability():
     assert summary["tool_selection_accuracy"]["min"] == 0.5
     assert summary["tool_selection_accuracy"]["std"] > 0
     assert summary["stable_cases"] == 1
+
+
+def test_traces_are_stored_and_grounding_can_be_rescored_offline(tmp_path):
+    from app.evaluation import rescore
+
+    case = {
+        "id": "x",
+        "question": "q",
+        "expected_tool": "average_treatment_effect",
+        "expected_args": {"outcome": "visit"},
+    }
+    good_trace = ToolTrace(
+        name="average_treatment_effect",
+        arguments={"outcome": "visit"},
+        result={"ate": 0.0123, "p_value": 1e-9},
+    )
+    ok = score_case(case, [good_trace], final("The effect is 1.23 points."), 1.0)
+    assert ok.traces[0]["result"]["ate"] == 0.0123 and ok.traces[0]["arguments"] == {
+        "outcome": "visit"
+    }
+    bad = score_case(case, [good_trace], final("The effect is 9.99 points.", ["9.99"]), 1.0)
+    stale = {**bad.__dict__, "grounded": False}
+    report = {"runs": [[ok.__dict__, stale]]}
+    path = tmp_path / "r.json"
+    path.write_text(json.dumps(report))
+    redone = rescore(path)
+    flags = [r["grounded"] for r in redone["runs"][0]]
+    assert flags == [True, False]
+    assert redone["aggregate"]["grounded_rate"]["mean"] == 0.5

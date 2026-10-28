@@ -11,7 +11,13 @@ ALLOWED_CONSTANTS = (0.001, 0.01, 0.05, 0.1)
 def _flatten(value: Any, out: list[float]) -> None:
     if isinstance(value, bool):
         return
-    if isinstance(value, int | float):
+    if isinstance(value, str):
+        for match in NUMBER.finditer(value):
+            try:
+                out.append(float(match.group().replace(",", "")))
+            except ValueError:
+                continue
+    elif isinstance(value, int | float):
         out.append(float(value))
     elif isinstance(value, dict):
         for item in value.values():
@@ -38,7 +44,9 @@ def _decimals(token: str) -> int:
 
 def _matches(number: float, token: str, forms: list[float]) -> bool:
     if "e" in token.lower():
-        return any(f != 0 and abs(number - f) <= 0.01 * abs(f) for f in forms)
+        mantissa = abs(float(re.split(r"[eE]", token)[0]))
+        relative = max(0.01, 0.5 * 10 ** -_decimals(token) / mantissa) if mantissa else 0.01
+        return any(f != 0 and abs(number - f) <= relative * abs(f) for f in forms)
     tolerance = 0.5 * 10 ** -_decimals(token) + 1e-9
     return any(abs(number - f) <= tolerance for f in forms)
 
