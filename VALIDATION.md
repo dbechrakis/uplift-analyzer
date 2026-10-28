@@ -69,7 +69,7 @@ Real Qwen3-4B-Instruct-2507 Q4_K_M on llama.cpp, CPU only, 61 questions (`evals/
 
 - Tool choice: 93.4% (57 of 61) in each of three runs (`evals/results_3runs.json`) and in the final run (`evals/results.json`). Argument accuracy was 96.7% and every question was answered.
 - Grounding with the final checker: 72.1% of answers have every number traceable to a tool result. Earlier runs with a stricter checker scored 64% to 71%. The checker was then corrected after review to read numbers inside segment labels and to accept scientific notation rounded to one digit. The evaluation was rerun with stored traces.
-- Failures found: four questions answered without calling a tool, 10-fold unit errors ("192 basis points" for 19.2, "+51.7%" for +5.17 pp), an addition error (99,999 for 100,000), and two answers quoting the +59% example from the system prompt. That example was then replaced by a neutral value without a local rerun.
+- Failures found: four questions answered without calling a tool, 10-fold unit errors ("192 basis points" for 19.2, "+51.7%" for +5.17 pp), an addition error (99,999 for 100,000), and two answers quoting the +59% example from the system prompt. That example was then replaced by a neutral value. The CI run on the new prompt (synthetic data, one run on GitHub's runner) scored 91.8% right tool, 95.1% right arguments and 73.8% fully grounded, within two points of the local run on each metric.
 - Limits: three answers (134 to 576 seconds) were slowed by a concurrent test run, so latency is not clean for them.
 
 ## Limits of this validation
