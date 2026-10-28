@@ -36,19 +36,3 @@ Only 3.6% of treated users were ever exposed to the ad. The effect of being assi
 Everything above is reproducible. The code, the tests, the validation record that includes these numbers and the defects I found along the way, and an interactive explorer are in the repository: https://github.com/dbechrakis/uplift-analyzer (explorer: https://dbechrakis.github.io/uplift-analyzer/).
 
 *Data: Criteo Uplift Prediction dataset, CC BY-NC-SA 4.0. Diemert, Betlei, Renaudin, Amini. A Large Scale Benchmark for Uplift Modeling. AdKDD 2018.*
-
----
-
-## Short LinkedIn version
-
-My A/B test passed the sample ratio check. It was still biased.
-
-On 14M users from Criteo's randomized uplift data, treatment share was 85.00% as designed (p = 0.999). But a classifier could predict treatment from user features (AUC 0.508 on a 500k sample, interval excludes 0.5), which a truly random assignment would not allow.
-
-It changed the answer: the raw effect on visits was +1.03 pp, about a third higher than the +0.77 pp I got after regression adjustment. Propensity weighting, a different method, gave +0.74 pp.
-
-Three checks I now run: sample ratio, covariate balance (including a classifier AUC), and raw versus adjusted versus weighted estimates.
-
-Bonus: only 3.6% of treated users saw the ad, so the effect on those who did was +28.7 pp, not +1.03.
-
-Code, tests and an interactive explorer: github.com/dbechrakis/uplift-analyzer
