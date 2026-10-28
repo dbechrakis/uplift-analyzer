@@ -1,0 +1,114 @@
+from __future__ import annotations
+
+import json
+import re
+from collections.abc import Iterator
+from dataclasses import dataclass, field
+
+from app.grounding import ungrounded_numbers
+from app.llm_client import LlamaClient, LlmError, ToolCall
+from app.tools import Toolbox, ToolTrace
+
+MAX_TOOL_CALLS_PER_TURN = 4
+THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
+
+SYSTEM_PROMPT = (
+    "You are an analytics assistant for a marketing incrementality study on the Criteo uplift "
+    "experiment. You NEVER compute, estimate or recall statistics yourself. To answer any "
+    "question that needs a number, call exactly the tool that computes it, wait for its result, "
+    "then explain that result in plain business language. Use only numbers that appear in tool "
+    "results. Percent values in results are fractions (0.01 means 1%). Treatment was randomly "
+    "assigned, so differences between treated and control are causal for this experiment only; "
+    "do not make claims beyond that. If a result has data_source 'synthetic', say it is "
+    "synthetic demo data. If no tool can answer the question, say so briefly. Keep answers under "
+    "150 words."
+)
+
+
+@dataclass
+class AgentEvent:
+    kind: str
+    text: str = ""
+    call: ToolCall | None = None
+    trace: ToolTrace | None = None
+    traces: list[ToolTrace] = field(default_factory=list)
+    unverified_numbers: list[str] = field(default_factory=list)
+
+
+def clean_text(text: str) -> str:
+    return THINK_BLOCK.sub("", text).strip()
+
+
+def _parse_arguments(raw: str) -> dict | str:
+    if not raw.strip():
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        return f"Arguments are not valid JSON: {exc.msg}"
+    return parsed
+
+
+def run_agent(
+    question: str,
+    toolbox: Toolbox,
+    client: LlamaClient,
+    history: list[dict] | None = None,
+    max_iterations: int | None = None,
+) -> Iterator[AgentEvent]:
+    limit = max_iterations or client.settings.max_iterations
+    messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages.extend(m for m in (history or [])[-6:] if m["role"] in ("user", "assistant"))
+    messages.append({"role": "user", "content": question})
+    traces: list[ToolTrace] = []
+    for _ in range(limit):
+        text = ""
+        calls: list[ToolCall] = []
+        try:
+            for event in client.stream_chat(messages, tools=toolbox.specs):
+                if event.kind == "content":
+                    text += event.text
+                    yield AgentEvent("text", text=event.text)
+                elif event.kind == "tool_calls":
+                    calls = event.tool_calls[:MAX_TOOL_CALLS_PER_TURN]
+        except LlmError as exc:
+            yield AgentEvent("error", text=str(exc), traces=traces)
+            return
+        if not calls:
+            final = clean_text(text)
+            flagged = ungrounded_numbers(
+                final, [t.result for t in traces if t.result], [t.arguments for t in traces]
+            )
+            yield AgentEvent("final", text=final, traces=traces, unverified_numbers=flagged)
+            return
+        messages.append(
+            {
+                "role": "assistant",
+                "content": text or None,
+                "tool_calls": [
+                    {
+                        "id": c.id,
+                        "type": "function",
+                        "function": {"name": c.name, "arguments": c.arguments_json or "{}"},
+                    }
+                    for c in calls
+                ],
+            }
+        )
+        for call in calls:
+            yield AgentEvent("tool_call", call=call)
+            arguments = _parse_arguments(call.arguments_json)
+            if isinstance(arguments, str):
+                trace = ToolTrace(name=call.name, arguments={}, error=arguments)
+            else:
+                trace = toolbox.call(call.name, arguments)
+            traces.append(trace)
+            yield AgentEvent("tool_result", call=call, trace=trace)
+            messages.append(
+                {"role": "tool", "tool_call_id": call.id, "content": trace.llm_payload()}
+            )
+    yield AgentEvent(
+        "limit",
+        text=f"Stopped after {limit} tool-calling rounds without a final answer.",
+        traces=traces,
+    )

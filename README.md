@@ -4,7 +4,7 @@ Local-first analytics that measures the **incrementality (uplift)** of a marketi
 [Criteo Uplift Prediction dataset](https://ailab.criteo.com/criteo-uplift-prediction-dataset/),
 with a small local LLM that explains results in plain business language.
 
-> Status: Phase 1 (core statistics) complete. App, LLM and deployment land in Phases 2 and 3.
+> Status: core statistics and the Streamlit app (with optional local LLM) are complete. Docker and CI land in Phase 3.
 
 ## Architecture
 
@@ -13,8 +13,9 @@ flowchart LR
     D[(Criteo Uplift v2.1)] --> L[core.data loader + seeded sample]
     L --> C[core: ATE, relative uplift, segments, Qini, SRM]
     C --> R[typed JSON results]
-    R --> UI[Streamlit UI - Phase 2]
-    UI <--> T[tool calls] <--> M[llama.cpp server - Phase 2]
+    R --> UI[Streamlit UI]
+    UI <--> A[agent loop, max 5 rounds] <--> M[llama.cpp server]
+    A --> T[tool wrappers] --> C
 ```
 
 The LLM never computes numbers. Every statistic comes from `core/`; the model only explains a returned result.
@@ -36,6 +37,31 @@ The LLM never computes numbers. Every statistic comes from `core/`; the model on
 | `uplift_by_segment` | per-quantile-bin effect with Benjamini-Hochberg adjusted p-values |
 | `qini_analysis` | T-learner (gradient boosting), Qini curve, AUUC, bootstrap CI |
 | `sample_ratio_check` | chi-square test of the treatment share (default 0.85) |
+
+## App
+
+```bash
+.venv/bin/python -m streamlit run app/main.py
+```
+
+Tabs: Overview, Segments, Qini, Ask the data. The sidebar sets source, sample size, outcome and segment feature.
+Every analysis shows the function that was called and its raw JSON in an expander.
+
+![Overview](docs/screenshots/overview.png)
+![Segments](docs/screenshots/segments.png)
+![Qini](docs/screenshots/qini.png)
+
+**No-LLM mode.** With the server off, the app stays fully usable: all tabs work, and "Ask the data" becomes a function picker with a rule-based plain-language explanation next to the raw result.
+
+**LLM mode.** Start a llama.cpp server with a ~4B instruct GGUF (Q4_K_M, for example a Qwen3 4B Instruct build) and tool calling enabled:
+
+```bash
+llama-server -m "$LLAMA_MODEL_PATH" --jinja --host 127.0.0.1 --port 8080 -c 8192
+```
+
+`LLAMA_BASE_URL` (default `http://127.0.0.1:8080/v1`) and `LLAMA_MODEL_PATH` come from the environment (see `.env.example`).
+The model picks one of six core functions through OpenAI-style tool calling, the code computes, and the model only explains the returned result.
+The loop is capped at 5 rounds and at 4 tool calls per round. Any number in the explanation that does not appear in a tool result is flagged in the UI.
 
 ## Run
 
@@ -59,5 +85,6 @@ Sample ratio check passes (p = 0.47). Conversion is rare, so its intervals are w
 ## Limitations
 
 * Results come from a 500k sample, not the full 14M rows; intervals on `conversion` are wide.
+* A 4B local model can pick the wrong tool or phrase things loosely; the raw result and the number check are there to catch that.
 * Uplift models rank users; they do not by themselves prove why a segment responds.
 * Causal claims hold only for the randomized treatment-versus-control comparison in this experiment.
