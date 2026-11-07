@@ -5,6 +5,8 @@
 ![Python 3.12](https://img.shields.io/badge/python-3.12-blue)
 ![License MIT](https://img.shields.io/badge/license-MIT-green)
 
+**Result:** On 13.98M users from randomized tests, the raw effect on visits is +1.03 pp, and +0.77 pp after covariate adjustment because assignment is slightly predictable from the features.
+
 Local-first analytics that measures the **incrementality (uplift)** of a marketing treatment on the
 [Criteo Uplift Prediction dataset](https://huggingface.co/datasets/criteo/criteo-uplift) (13.98M users from randomized incrementality tests),
 and a small **local LLM** that explains the results in plain business language without ever computing a number.
