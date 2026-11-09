@@ -7,7 +7,7 @@ import statsmodels.api as sm
 from scipy import stats
 
 from core.adjusted import regression_adjusted_effect
-from core.cace import complier_effect
+from core.cace import adjusted_complier_effect, complier_effect
 from core.data import FEATURES
 from core.learners import LEARNER_NAMES, compare_uplift_learners
 from core.metrics import average_treatment_effect
@@ -386,3 +386,39 @@ def test_propensity_weighting_is_deterministic_and_validates_inputs(synthetic_df
             propensity_weighted_effect(small, "visit", **kwargs)
     with pytest.raises(ValueError):
         propensity_weighted_effect(small[small["treatment"] == 1], "visit")
+
+
+def confounded_cace_frame(n, rng, true_effect=0.10):
+    x = rng.normal(size=n)
+    z = (rng.random(n) < 1 / (1 + np.exp(-0.6 * x))).astype(int)
+    complier = rng.random(n) < 1 / (1 + np.exp(-(-0.4 + 0.8 * x)))
+    exposed = z * complier
+    base = np.clip(0.10 + 0.05 * x, 0.01, 0.99)
+    y = (rng.random(n) < base + true_effect * exposed).astype(int)
+    df = frame(z, exposed, y)
+    df["f0"] = x
+    return df
+
+
+def test_adjusted_cace_recovers_the_effect_when_assignment_follows_a_feature():
+    rng = np.random.default_rng(5)
+    hits, raw_bias, adj_bias = 0, [], []
+    runs = 200
+    for _ in range(runs):
+        r = adjusted_complier_effect(confounded_cace_frame(8000, rng), features=["f0"])
+        hits += r.cace_ci_low <= 0.10 <= r.cace_ci_high
+        raw_bias.append(r.unadjusted_cace - 0.10)
+        adj_bias.append(r.cace - 0.10)
+    assert 0.91 <= hits / runs <= 0.99
+    assert np.mean(raw_bias) > 0.02
+    assert abs(np.mean(adj_bias)) < 0.006
+
+
+def test_adjusted_cace_equals_the_raw_wald_estimate_without_covariates():
+    df = constructed_cace_frame()
+    r = adjusted_complier_effect(df, features=[])
+    raw = complier_effect(df)
+    assert r.cace == pytest.approx(raw.cace, abs=1e-9)
+    assert r.cace_std_error == pytest.approx(raw.cace_std_error, rel=1e-3)
+    assert r.adjusted_first_stage == pytest.approx(0.4)
+    json.loads(r.to_json())

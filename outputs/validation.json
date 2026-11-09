@@ -106,7 +106,7 @@
         "unadjusted_ate": 0.001188047661099015,
         "effective_n_treated": 3399737.854701032,
         "effective_n_control": 596854.2642219467,
-        "method": "Hajek inverse-propensity weighting with cross-fitted gradient-boosting propensities; linearized standard error that treats the propensity as known (conservative)"
+        "method": "Hajek inverse-propensity weighting with cross-fitted gradient-boosting propensities. Linearized standard error that treats the propensity as known (conservative)."
       },
       "visit": {
         "outcome": "visit",
@@ -126,7 +126,7 @@
         "unadjusted_ate": 0.010199625232100482,
         "effective_n_treated": 3399737.854701032,
         "effective_n_control": 596854.2642219467,
-        "method": "Hajek inverse-propensity weighting with cross-fitted gradient-boosting propensities; linearized standard error that treats the propensity as known (conservative)"
+        "method": "Hajek inverse-propensity weighting with cross-fitted gradient-boosting propensities. Linearized standard error that treats the propensity as known (conservative)."
       }
     },
     "cace": {
@@ -173,6 +173,24 @@
         "never_taker_rate": 0.034861057844541195,
         "naive_exposed_vs_control": 0.37633670199706637,
         "method": "Wald instrumental-variable estimator, delta-method CI"
+      }
+    },
+    "cace_adjusted": {
+      "conversion": {
+        "adjusted_itt": 0.001001656024202429,
+        "adjusted_first_stage": 0.035427494619565285,
+        "cace": 0.028273408406623585,
+        "cace_std_error": 0.0009577967973828495,
+        "cace_ci_low": 0.026396161179245394,
+        "cace_ci_high": 0.030150655634001777
+      },
+      "visit": {
+        "adjusted_itt": 0.007733822440301803,
+        "adjusted_first_stage": 0.035427494619565285,
+        "cace": 0.2183000102985183,
+        "cace_std_error": 0.003689175830418977,
+        "cace_ci_low": 0.21106935853826148,
+        "cace_ci_high": 0.22553066205877514
       }
     },
     "relative_uplift": {
@@ -233,5 +251,5 @@
     "familywise_false_positive_rate_bh_10_null_segments": 0.05333333333333334,
     "mean_false_discoveries_per_run": 0.056666666666666664
   },
-  "runtime_seconds": 105
+  "runtime_seconds": 115
 }

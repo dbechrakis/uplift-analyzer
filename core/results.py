@@ -152,6 +152,26 @@ class CaceResult(Serializable):
 
 
 @dataclass(frozen=True)
+class AdjustedCaceResult(Serializable):
+    outcome: str
+    data_source: str
+    n: int
+    n_covariates: int
+    adjusted_itt: float
+    adjusted_first_stage: float
+    cace: float
+    cace_std_error: float
+    cace_ci_low: float
+    cace_ci_high: float
+    confidence_level: float
+    unadjusted_cace: float
+    method: str = (
+        "Covariate-adjusted Wald estimator: Lin (2013) adjusted effect on the outcome "
+        "over the same on exposure, delta-method CI with HC1 covariance of both"
+    )
+
+
+@dataclass(frozen=True)
 class PowerResult(Serializable):
     mode: str
     baseline_rate: float

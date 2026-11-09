@@ -8,7 +8,7 @@ from pathlib import Path
 
 from core.adjusted import regression_adjusted_effect
 from core.balance import covariate_balance
-from core.cace import complier_effect
+from core.cace import adjusted_complier_effect, complier_effect
 from core.data import DATASET_ROWS, FEATURES, default_seed, load_criteo_sample
 from core.learners import compare_uplift_learners
 from core.metrics import average_treatment_effect, relative_uplift
@@ -47,6 +47,7 @@ def build_demo_data(
             "adjusted": full["adjusted"],
             "propensity": full.get("propensity", {}),
             "cace": full["cace"],
+            "cace_adjusted": full.get("cace_adjusted", {}),
             "max_abs_smd": full["max_abs_smd"],
         }
         out["sampling_validation"] = validation["sampling"]
@@ -66,6 +67,7 @@ def build_demo_data(
             "adjusted": regression_adjusted_effect(df, outcome).to_dict(),
             "relative": relative_uplift(df, outcome).to_dict(),
             "cace": complier_effect(df, outcome).to_dict(),
+            "cace_adjusted": adjusted_complier_effect(df, outcome).to_dict(),
             "segments": {
                 f: uplift_by_segment(df, f, n_bins=5, outcome=outcome).to_dict() for f in FEATURES
             },

@@ -78,13 +78,17 @@
   function renderExposure() {
     var c = o().cace;
     $("exposure-metrics").innerHTML = metric("Treated users exposed", pct(c.exposure_rate_treated, 1)) + metric("Intent-to-treat effect", pp(c.itt)) +
-      metric("Effect on exposed users (CACE)", pp(c.cace, 2)) + metric("Naive exposed vs control", pp(c.naive_exposed_vs_control, 2));
+      metric("Effect on exposed users (CACE)", pp(c.cace, 2)) + metric("Same, adjusted for features", pp(o().cace_adjusted.cace, 2)) +
+      metric("Naive exposed vs control", pp(c.naive_exposed_vs_control, 2));
     var t = "Only " + pct(c.exposure_rate_treated, 1) + " of treated users were actually exposed, and no control user ever was. The effect of being assigned is " +
       pp(c.itt) + ". For users who actually saw the ad it is " + pp(c.cace, 2) + " (95% CI " + (c.cace_ci_low * 100).toFixed(2) + " to " + (c.cace_ci_high * 100).toFixed(2) +
       "). Comparing exposed treated users with all control users gives " + pp(c.naive_exposed_vs_control, 2) + ", which mixes the ad effect with differences between people who get exposed and people who do not.";
     if (c.complier_rate_control != null) {
       t += " Users who get exposed would have converted at " + pct(c.complier_rate_control, 2) + " without the ad, versus " + pct(c.never_taker_rate, 2) + " for treated users who were never exposed.";
     }
+    var a = o().cace_adjusted;
+    t += " Assignment is slightly predictable from the features, so the raw figure inherits the bias of the raw intent-to-treat effect. Adjusting both the effect and the exposure share for the features gives " +
+      pp(a.cace, 2) + " (95% CI " + (a.cace_ci_low * 100).toFixed(2) + " to " + (a.cace_ci_high * 100).toFixed(2) + "). Read that one first.";
     $("exposure-text").textContent = t + " This assumes the ad affects users only through being exposed.";
   }
 
