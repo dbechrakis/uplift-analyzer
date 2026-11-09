@@ -150,3 +150,29 @@ def test_traces_are_stored_and_grounding_can_be_rescored_offline(tmp_path):
     flags = [r["grounded"] for r in redone["runs"][0]]
     assert flags == [True, False]
     assert redone["aggregate"]["grounded_rate"]["mean"] == 0.5
+
+
+def test_the_summary_reports_first_draft_grounding_and_repairs():
+    from app.evaluation import CaseResult, summarize
+
+    base = dict(
+        question="q",
+        expected_tool=None,
+        called_tools=[],
+        tool_correct=True,
+        args_correct=True,
+        tool_errors=0,
+        answered=True,
+        seconds=1.0,
+        answer="a",
+    )
+    results = [
+        CaseResult(id="a", grounded=True, first_draft_grounded=False, repaired=True, **base),
+        CaseResult(id="b", grounded=True, first_draft_grounded=True, **base),
+    ]
+    s = summarize(results)
+    assert (
+        s["grounded_rate"] == 1.0
+        and s["first_draft_grounded_rate"] == 0.5
+        and s["repaired_cases"] == 1
+    )

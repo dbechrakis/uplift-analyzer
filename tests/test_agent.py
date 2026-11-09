@@ -167,3 +167,47 @@ def test_history_is_sent_without_tool_messages(toolbox):
 
 def test_think_blocks_are_removed_from_final_text():
     assert clean_text("<think>secret plan</think>\nAnswer.") == "Answer."
+
+
+def responder_with_rewrite(first_answer, rewrite):
+    def respond(payload, n):
+        messages = payload["messages"]
+        if not [m for m in messages if m["role"] == "tool"]:
+            return sse(*tool_call_chunks("average_treatment_effect", {"outcome": "visit"}))
+        result = json.loads([m for m in messages if m["role"] == "tool"][-1]["content"])
+        if messages[-1]["role"] == "user" and "not in any tool result" in messages[-1]["content"]:
+            return sse(*content_chunks(rewrite(result)))
+        return sse(*content_chunks(first_answer))
+
+    return respond
+
+
+def test_repair_is_off_by_default_so_the_published_evaluation_still_applies(toolbox):
+    server = MockLlmServer(responder_with_rewrite("Uplift is 777.7 points.", lambda r: "unused"))
+    events = list(run_agent("q", toolbox, server.client()))
+    assert "repair" not in kinds(events) and "777.7" in events[-1].unverified_numbers
+    assert not events[-1].repaired and not events[-1].replaced_by_fallback
+
+
+def test_a_rewrite_that_copies_the_tool_numbers_replaces_the_ungrounded_answer(toolbox):
+    server = MockLlmServer(
+        responder_with_rewrite(
+            "Uplift is 777.7 points.",
+            lambda r: f"The effect is {r['ate'] * 100:.3f} percentage points.",
+        )
+    )
+    events = list(run_agent("q", toolbox, server.client(grounding_repair=True)))
+    final = events[-1]
+    assert "repair" in kinds(events) and final.repaired and not final.replaced_by_fallback
+    assert final.unverified_numbers == [] and "777.7" in final.first_draft_unverified
+    assert "not in any tool result: 777.7" in server.requests[-1]["messages"][-1]["content"]
+
+
+def test_a_rewrite_that_still_invents_a_number_falls_back_to_the_code_explanation(toolbox):
+    server = MockLlmServer(
+        responder_with_rewrite("Uplift is 777.7 points.", lambda r: "Still 888.8 points.")
+    )
+    final = list(run_agent("q", toolbox, server.client(grounding_repair=True)))[-1]
+    assert final.replaced_by_fallback and final.unverified_numbers == []
+    assert "888.8" not in final.text and "777.7" not in final.text and final.text
+    assert len(server.requests) == 3

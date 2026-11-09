@@ -343,9 +343,19 @@ def ask_llm(question: str, toolbox: Toolbox, client: LlamaClient) -> None:
             elif event.kind == "tool_result":
                 shown.append(event.trace)
                 show_trace(event.trace)
+            elif event.kind == "repair":
+                streamed = ""
+                placeholder.markdown(
+                    "Checking the numbers against the tool results and rewriting..."
+                )
             elif event.kind == "final":
                 outcome["content"] = event.text or "(no answer)"
                 outcome["warning"] = unverified_warning(event.unverified_numbers)
+                if event.replaced_by_fallback:
+                    outcome["warning"] = (
+                        "The model's answer used numbers that no tool returned, even after a "
+                        "rewrite. This is the app's own explanation of the tool results instead."
+                    )
             elif event.kind in ("error", "limit"):
                 outcome["content"] = event.text
                 st.error(event.text)

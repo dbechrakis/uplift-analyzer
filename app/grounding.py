@@ -27,10 +27,23 @@ def _flatten(value: Any, out: list[float]) -> None:
             _flatten(item, out)
 
 
+def _significance_levels(value: Any, out: list[float]) -> None:
+    if isinstance(value, dict):
+        level = value.get("confidence_level")
+        if isinstance(level, int | float) and not isinstance(level, bool) and 0 < level < 1:
+            out.append(1 - level)
+        for item in value.values():
+            _significance_levels(item, out)
+    elif isinstance(value, list | tuple):
+        for item in value:
+            _significance_levels(item, out)
+
+
 def known_values(*sources: Any) -> list[float]:
     values: list[float] = []
     for source in sources:
         _flatten(source, values)
+        _significance_levels(source, values)
     forms: list[float] = []
     for v in values:
         forms.extend((v, v * 100, abs(v), abs(v) * 100))
