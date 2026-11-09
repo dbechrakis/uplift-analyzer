@@ -5,6 +5,7 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 
+from app.fallback import EXPLAINERS, explain
 from app.grounding import ungrounded_numbers
 from app.llm_client import LlamaClient, LlmError, ToolCall
 from app.tools import Toolbox, ToolTrace
@@ -35,6 +36,19 @@ SYSTEM_PROMPT = (
 )
 
 
+REPAIR_PROMPT = (
+    "Your answer contains numbers that are not in any tool result: {numbers}. "
+    "Rewrite the answer. Use only numbers that appear in the tool results, copied exactly, "
+    "and drop any number you cannot copy. Do not call a tool and do not compute anything."
+)
+NO_TOOL_ANSWER = "I could not answer this from the tool results without computing a number myself."
+
+
+def fallback_answer(traces: list[ToolTrace]) -> str:
+    texts = [explain(t.name, t.result) for t in traces if t.result and t.name in EXPLAINERS]
+    return " ".join(texts) if texts else NO_TOOL_ANSWER
+
+
 @dataclass
 class AgentEvent:
     kind: str
@@ -43,6 +57,9 @@ class AgentEvent:
     trace: ToolTrace | None = None
     traces: list[ToolTrace] = field(default_factory=list)
     unverified_numbers: list[str] = field(default_factory=list)
+    first_draft_unverified: list[str] = field(default_factory=list)
+    repaired: bool = False
+    replaced_by_fallback: bool = False
 
 
 def clean_text(text: str) -> str:
@@ -71,7 +88,9 @@ def run_agent(
     messages.extend(m for m in (history or [])[-6:] if m["role"] in ("user", "assistant"))
     messages.append({"role": "user", "content": question})
     traces: list[ToolTrace] = []
-    for _ in range(limit):
+    repair = client.settings.grounding_repair
+    first_draft: list[str] | None = None
+    for _ in range(limit + (1 if repair else 0)):
         text = ""
         calls: list[ToolCall] = []
         try:
@@ -89,7 +108,29 @@ def run_agent(
             flagged = ungrounded_numbers(
                 final, [t.result for t in traces if t.result], [t.arguments for t in traces]
             )
-            yield AgentEvent("final", text=final, traces=traces, unverified_numbers=flagged)
+            if flagged and repair and first_draft is None:
+                first_draft = flagged
+                messages.append({"role": "assistant", "content": final})
+                messages.append(
+                    {"role": "user", "content": REPAIR_PROMPT.format(numbers=", ".join(flagged))}
+                )
+                yield AgentEvent("repair", text=final, unverified_numbers=flagged)
+                continue
+            replaced = bool(flagged and repair)
+            if replaced:
+                final = fallback_answer(traces)
+                flagged = ungrounded_numbers(
+                    final, [t.result for t in traces if t.result], [t.arguments for t in traces]
+                )
+            yield AgentEvent(
+                "final",
+                text=final,
+                traces=traces,
+                unverified_numbers=flagged,
+                first_draft_unverified=first_draft if first_draft is not None else flagged,
+                repaired=first_draft is not None,
+                replaced_by_fallback=replaced,
+            )
             return
         messages.append(
             {

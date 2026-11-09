@@ -34,6 +34,9 @@ class CaseResult:
     answer: str
     unverified_numbers: list[str] | None = None
     traces: list[dict] | None = None
+    first_draft_grounded: bool = False
+    repaired: bool = False
+    replaced_by_fallback: bool = False
 
 
 def score_case(
@@ -66,6 +69,9 @@ def score_case(
         tool_errors=sum(1 for t in traces if t.error),
         answered=answered,
         grounded=final is not None and not final.unverified_numbers,
+        first_draft_grounded=final is not None and not final.first_draft_unverified,
+        repaired=final is not None and final.repaired,
+        replaced_by_fallback=final is not None and final.replaced_by_fallback,
         seconds=round(seconds, 1),
         answer=final.text if final is not None else "",
         unverified_numbers=list(final.unverified_numbers) if final is not None else [],
@@ -93,6 +99,9 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
         "argument_accuracy": rate("args_correct"),
         "answered_rate": rate("answered"),
         "grounded_rate": rate("grounded"),
+        "first_draft_grounded_rate": rate("first_draft_grounded"),
+        "repaired_cases": sum(1 for r in results if r.repaired),
+        "replaced_by_fallback_cases": sum(1 for r in results if r.replaced_by_fallback),
         "tool_error_cases": sum(1 for r in results if r.tool_errors),
         "median_seconds": round(statistics.median(r.seconds for r in results), 1) if n else 0.0,
     }

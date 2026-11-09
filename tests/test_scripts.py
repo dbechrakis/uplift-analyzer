@@ -5,6 +5,7 @@ import pytest
 import core.export_demo as export_demo
 import core.validate as validate
 from core.adjusted import regression_adjusted_effect
+from core.cace import adjusted_complier_effect
 from core.report import build_report
 from core.synthetic import generate_synthetic
 
@@ -23,6 +24,18 @@ def test_chunked_full_data_adjustment_matches_the_core_function(small, monkeypat
         assert chunked[outcome]["std_error"] == pytest.approx(direct.std_error, rel=1e-6)
 
 
+def test_chunked_full_data_adjusted_cace_matches_the_core_function(small, monkeypatch):
+    monkeypatch.setattr(validate, "ADJUST_CHUNK", 2_500)
+    chunked = validate.full_adjusted_cace(small, ("conversion", "visit"))
+    for outcome in ("conversion", "visit"):
+        direct = adjusted_complier_effect(small, outcome)
+        assert chunked[outcome]["cace"] == pytest.approx(direct.cace, abs=1e-9)
+        assert chunked[outcome]["cace_std_error"] == pytest.approx(direct.cace_std_error, rel=1e-6)
+        assert chunked[outcome]["adjusted_first_stage"] == pytest.approx(
+            direct.adjusted_first_stage, abs=1e-9
+        )
+
+
 def test_full_data_checks_report_structure(small, monkeypatch):
     monkeypatch.setattr(validate, "PROPENSITY_ROWS", 6_000)
     checks = validate.full_data_checks(small)
@@ -33,6 +46,7 @@ def test_full_data_checks_report_structure(small, monkeypatch):
     assert set(checks["smd"]) == set(f"f{i}" for i in range(12))
     assert checks["unadjusted"]["conversion"]["ate"] > 0
     assert checks["cace"]["visit"]["one_sided"] is True
+    assert set(checks["cace_adjusted"]) == {"conversion", "visit"}
     json.dumps(checks)
 
 

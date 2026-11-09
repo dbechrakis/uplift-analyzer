@@ -24,7 +24,7 @@ My hypothesis, which I cannot verify from the public file, comes from the datase
 
 ## A second lesson: who actually saw the ad
 
-Only 3.6% of treated users were ever exposed to the ad. The effect of being assigned to treatment, +1.03 pp on visits, averages over the 96% who could not respond. For users who were actually exposed, an instrumental-variable estimate gives **+28.7 pp**. Comparing exposed treated users with all control users instead would give a much larger number, because the people who get exposed differ from the rest. On my 500k sample that naive contrast was +38.6 pp. Intent-to-treat and effect-on-exposed answer different questions, and mixing them up is easy.
+Only 3.6% of treated users were ever exposed to the ad. The effect of being assigned to treatment, +1.03 pp on visits, averages over the 96% who could not respond. For users who were actually exposed, an instrumental-variable estimate gives **+28.7 pp** raw. That raw estimate breaks my own first lesson, because it divides the raw effect, which I had just shown is too high, by the raw exposure share. Adjusting both for the features gives **+21.8 pp** (95% CI 21.1 to 22.6), about a quarter lower, like the effect itself. Comparing exposed treated users with all control users instead would give a much larger number, because the people who get exposed differ from the rest. On my 500k sample that naive contrast was +38.6 pp. Intent-to-treat and effect-on-exposed answer different questions, and mixing them up is easy.
 
 ## Limits
 

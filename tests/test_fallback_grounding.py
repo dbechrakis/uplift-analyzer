@@ -100,3 +100,12 @@ def test_grounding_reads_numbers_embedded_in_string_labels():
 def test_grounding_tolerates_scientific_notation_rounded_to_one_digit():
     assert ungrounded_numbers("p was about 4e-6.", {"p": 3.97e-6}) == []
     assert ungrounded_numbers("p was about 9e-6.", {"p": 3.97e-6}) == ["9e-6"]
+
+
+def test_the_significance_level_implied_by_a_confidence_level_is_grounded():
+    from app.grounding import ungrounded_numbers
+
+    result = {"ate": 0.12163, "confidence_level": 0.95}
+    assert ungrounded_numbers("significant at the 5% level", result) == []
+    assert ungrounded_numbers("significant at the 7% level", result) == ["7"]
+    assert ungrounded_numbers("significant at the 5% level", {"ate": 0.12163}) == ["5"]

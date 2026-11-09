@@ -19,6 +19,7 @@ All 13,979,592 users, streamed in chunks:
 | Relative uplift | +59.4% | +27.1% |
 | Covariate-adjusted effect (SE) | +0.1002 pp (0.0034) | +0.7734 pp (0.0131) |
 | Effect on exposed users, CACE (95% CI) | +3.196 pp (3.010 to 3.383) | +28.700 pp (27.911 to 29.488) |
+| Same, adjusted for the features (95% CI) | +2.827 pp (2.640 to 3.015) | +21.830 pp (21.107 to 22.553) |
 
 - The seeded 500k sample (seed 42) gives +0.115 pp (conversion) and +1.19 pp (visit) raw. The visit estimate sits about two standard deviations above the all-users value (+1.03 pp): ordinary sampling noise, not a bug. The seed was not changed.
 - 100 independent random samples of 500,000 users: the 95% interval contained the all-users raw effect in 97% of samples for conversion and 92% for visit (with 100 draws the standard error of a coverage figure is about 2 points). The sample ratio check raised 0 false alarms.
@@ -30,6 +31,14 @@ All 13,979,592 users, streamed in chunks:
 - Consequence: the raw and covariate-adjusted effects disagree on all users (visit +1.034 vs +0.773 pp, conversion +0.115 vs +0.100 pp). Both are consistent under perfect randomization, so the gap points to assignment that depends on the features. This fits Criteo's description of the file as several pooled tests, which would give users different treatment probabilities.
 - A third, independent method agrees. Cross-fitted propensity weighting (gradient-boosting propensities fitted on one half of a 4,000,000-user random subset and applied to the other, weights stabilized with the Hajek estimator, no weight clipped, propensities between 0.585 and 0.972) gives +0.736 pp on visits (95% CI 0.679 to 0.792) and +0.101 pp on conversions (0.088 to 0.115). It lands within 0.04 pp of the regression-adjusted visit estimate and within 0.001 pp for conversion, and both sit below the raw +1.034 and +0.115 pp. Its standard error treats the propensity as known, which is conservative. In tests it recovers a planted effect that a raw difference overstates, and it agrees with the raw difference under genuine randomization.
 - The app and demo therefore show the adjusted estimate next to the raw one, and the explanations no longer call the raw difference simply causal. A passing sample ratio check does not detect this kind of problem.
+
+## The effect on exposed users, corrected for imperfect randomization (2026-11-09)
+
+- The raw complier estimate divides the raw intent-to-treat effect by the raw exposure share. The section above shows the raw effect is too high because assignment depends on the features, so the raw CACE inherited that bias. This was found in an external review and is corrected here.
+- `adjusted_complier_effect` adjusts both parts for the features with the same Lin interacted regression and takes their ratio. The delta-method interval uses the HC1 covariance of the two coefficients, which share one design matrix. `make validate` computes it on all rows in chunks (`full_adjusted_cace`), and a test checks the chunked and direct versions agree.
+- On all 13,979,592 users the adjusted exposure share is 3.543% against 3.604% raw, and the CACE is +21.83 pp on visits (95% CI 21.11 to 22.55) against +28.70 raw, and +2.83 pp on conversions (2.64 to 3.02) against +3.20. The visit estimate falls by about a quarter, in line with the intent-to-treat effect.
+- In a simulation where assignment and exposure both depend on a feature that also drives the outcome (200 runs), the raw estimate is biased upward and the adjusted interval covers the planted effect at the nominal rate (`tests/test_extensions.py`). With no covariates the adjusted estimate equals the raw one exactly.
+- The language-model tool `complier_effect` still returns the raw figure, because changing a tool result requires rerunning the evaluation. The app and the demo show the adjusted figure next to it and say which to read first.
 
 ## Correctness of the statistics code (2026-10-28)
 
@@ -79,3 +88,9 @@ Real Qwen3-4B-Instruct-2507 Q4_K_M on llama.cpp, CPU only, 61 questions (`evals/
 - The targeting profit is a scenario with assumed value and cost, not a measured return.
 - The best targeting profit is optimistic because the fraction is chosen on the same held-out users. A split-half check on the default sample (500,000 rows, seed 42, 100 random halvings of the holdout) picked the fraction on one half and scored it on the other. The profit fell by about 20% (22,884 chosen against 18,389 scored, at the default value and cost). The halves are half the size of the holdout, so this likely overstates the optimism of the reported figure. The chosen fraction ranged from 0% to 16% across halvings, which shows the optimum is not sharply identified. The reported profit interval holds the fraction fixed and is therefore too narrow. The in-app scenario note still says slightly optimistic, because changing a tool result means rerunning the language model evaluation.
 - The language-model evaluation has 61 questions and 3 runs. It indicates behaviour and is not a benchmark.
+
+## Grounding repair, built and not yet evaluated (2026-11-09)
+
+- The grounding check used to flag numbers and leave the answer as written. `LLAMA_GROUNDING_REPAIR=1` now gives a flagged answer one rewrite that names the numbers to remove. If the rewrite is still flagged, the answer is replaced by the code-written explanation from `app/fallback.py`. Three tests drive these paths with a mocked server, including that the mode is off by default.
+- A test of the fallback path found a false flag in the checker. The code-written explanation says "significant at the 5% level", and the checker did not know that a confidence level of 0.95 implies 5%. It now does, and only for results that carry a confidence level. Rescoring the stored `evals/results.json` traces with the new checker leaves the grounded rate at 72.1%. `evals/results_3runs.json` stores no traces and cannot be rescored.
+- No real-model numbers exist for the repair mode yet. Building llama.cpp locally was not possible in the session that wrote it. The weekly LLM workflow now runs a second, ungated pass with the mode on and uploads `evals/ci-results-repair.json`. The default stays off until those results are read, so the published evaluation still describes what ships.

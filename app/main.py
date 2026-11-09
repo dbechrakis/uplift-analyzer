@@ -10,6 +10,7 @@ from app.config import Settings
 from app.fallback import explain
 from app.llm_client import LlamaClient
 from app.tools import TOOL_DEFINITIONS, Toolbox, ToolTrace
+from core.cace import adjusted_complier_effect
 from core.data import (
     DEFAULT_SEED,
     FEATURES,
@@ -125,12 +126,21 @@ def render_exposure(toolbox: Toolbox, outcome: str) -> None:
     if not trace.result:
         return
     r = trace.result
-    cols = st.columns(4)
+    adjusted = adjusted_complier_effect(toolbox.df, outcome, data_source=toolbox.data_source)
+    cols = st.columns(5)
     cols[0].metric("Treated users exposed", f"{r['exposure_rate_treated']:.1%}")
     cols[1].metric("Intent-to-treat effect", f"{r['itt'] * 100:+.3f} pp")
     cols[2].metric("Effect on exposed (CACE)", f"{r['cace'] * 100:+.2f} pp")
-    cols[3].metric("Naive exposed vs control", f"{r['naive_exposed_vs_control'] * 100:+.2f} pp")
+    cols[3].metric("CACE adjusted for features", f"{adjusted.cace * 100:+.2f} pp")
+    cols[4].metric("Naive exposed vs control", f"{r['naive_exposed_vs_control'] * 100:+.2f} pp")
     st.write(explain("complier_effect", r))
+    st.caption(
+        "Assignment is slightly predictable from the features, so the raw CACE inherits "
+        "the bias of the raw intent-to-treat effect. Adjusting both for the features gives "
+        f"{adjusted.cace * 100:+.2f} pp "
+        f"(95% CI {adjusted.cace_ci_low * 100:.2f} to {adjusted.cace_ci_high * 100:.2f}). "
+        "The language model tool still returns the raw figure."
+    )
     if r["one_sided"] and r["complier_rate_control"] is not None:
         st.dataframe(
             [
@@ -333,9 +343,19 @@ def ask_llm(question: str, toolbox: Toolbox, client: LlamaClient) -> None:
             elif event.kind == "tool_result":
                 shown.append(event.trace)
                 show_trace(event.trace)
+            elif event.kind == "repair":
+                streamed = ""
+                placeholder.markdown(
+                    "Checking the numbers against the tool results and rewriting..."
+                )
             elif event.kind == "final":
                 outcome["content"] = event.text or "(no answer)"
                 outcome["warning"] = unverified_warning(event.unverified_numbers)
+                if event.replaced_by_fallback:
+                    outcome["warning"] = (
+                        "The model's answer used numbers that no tool returned, even after a "
+                        "rewrite. This is the app's own explanation of the tool results instead."
+                    )
             elif event.kind in ("error", "limit"):
                 outcome["content"] = event.text
                 st.error(event.text)

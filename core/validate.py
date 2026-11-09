@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from core import data as data_module
-from core.cace import complier_effect
+from core.cace import complier_effect, wald_ratio
 from core.data import DATASET_ROWS, DATASET_SHA256, DTYPES, FEATURES, raw_path, sha256_of
 from core.metrics import ate_from_counts, average_treatment_effect, relative_uplift
 from core.propensity import propensity_weighted_effect
@@ -68,6 +68,63 @@ def full_adjusted_effects(full: pd.DataFrame, outcomes: tuple[str, ...]) -> dict
     return result
 
 
+def full_adjusted_cace(full: pd.DataFrame, outcomes: tuple[str, ...]) -> dict[str, dict]:
+    means = full[FEATURES].mean().to_numpy(dtype=np.float64)
+    k = 2 + 2 * len(FEATURES)
+    n = len(full)
+    columns = (*outcomes, "exposure")
+    gram = np.zeros((k, k))
+    xty = {c: np.zeros(k) for c in columns}
+
+    def design(block: pd.DataFrame) -> np.ndarray:
+        x = block[FEATURES].to_numpy(dtype=np.float64) - means
+        t = block["treatment"].to_numpy(dtype=np.float64)
+        return np.column_stack([np.ones(len(block)), t, x, x * t[:, None]])
+
+    for start in range(0, n, ADJUST_CHUNK):
+        block = full.iloc[start : start + ADJUST_CHUNK]
+        d = design(block)
+        gram += d.T @ d
+        for c in columns:
+            xty[c] += d.T @ block[c].to_numpy(dtype=np.float64)
+    gram_inv = np.linalg.inv(gram)
+    beta = {c: gram_inv @ xty[c] for c in columns}
+    pairs = (
+        [(o, o) for o in outcomes]
+        + [("exposure", "exposure")]
+        + [(o, "exposure") for o in outcomes]
+    )
+    meat = {p: np.zeros((k, k)) for p in pairs}
+    for start in range(0, n, ADJUST_CHUNK):
+        block = full.iloc[start : start + ADJUST_CHUNK]
+        d = design(block)
+        resid = {c: block[c].to_numpy(dtype=np.float64) - d @ beta[c] for c in columns}
+        for a, b in pairs:
+            meat[(a, b)] += (d * resid[a][:, None]).T @ (d * resid[b][:, None])
+
+    def cov(a: str, b: str) -> float:
+        return float((gram_inv @ meat[(a, b)] @ gram_inv)[1, 1] * (n / (n - k)))
+
+    result = {}
+    for o in outcomes:
+        ratio, se = wald_ratio(
+            float(beta[o][1]),
+            float(beta["exposure"][1]),
+            cov(o, o),
+            cov("exposure", "exposure"),
+            cov(o, "exposure"),
+        )
+        result[o] = {
+            "adjusted_itt": float(beta[o][1]),
+            "adjusted_first_stage": float(beta["exposure"][1]),
+            "cace": ratio,
+            "cace_std_error": se,
+            "cace_ci_low": ratio - 1.959963984540054 * se,
+            "cace_ci_high": ratio + 1.959963984540054 * se,
+        }
+    return result
+
+
 PROPENSITY_ROWS = 4_000_000
 
 
@@ -96,6 +153,7 @@ def full_data_checks(full: pd.DataFrame) -> dict:
     }
     adjusted = full_adjusted_effects(full, ("conversion", "visit"))
     cace = {o: complier_effect(full, o).to_dict() for o in ("conversion", "visit")}
+    cace_adjusted = full_adjusted_cace(full, ("conversion", "visit"))
     propensity = full_data_propensity(full, ("conversion", "visit"))
     return {
         "rows": len(full),
@@ -108,6 +166,7 @@ def full_data_checks(full: pd.DataFrame) -> dict:
         "adjusted": adjusted,
         "propensity": propensity,
         "cace": cace,
+        "cace_adjusted": cace_adjusted,
         "relative_uplift": {o: relative_uplift(full, o).to_dict() for o in ("conversion", "visit")},
         "sample_ratio": sample_ratio_check(full).to_dict(),
     }
