@@ -158,7 +158,16 @@ Qwen3-4B-Instruct-2507 Q4_K_M on llama.cpp, CPU only (4 cores), 100k-row real sa
 
 Tool choice did not vary at all across three earlier runs of the same questions (`evals/results_3runs.json`, 93.4% each time) or the final run (`evals/results.json`, which also stores every tool call for offline rescoring with `python -m app.evaluation --rescore`). Only the wording, and therefore the grounding, varies between runs. An earlier 20-question evaluation with six tools went from 80% to 90% after a prompt change. The harder 61-question set with eleven tools scores 93.4%.
 
-**Grounding repair (optional, not yet evaluated on the real model).** With `LLAMA_GROUNDING_REPAIR=1` the agent gives a flagged answer one rewrite with the offending numbers named. If the rewrite still carries a number no tool returned, the answer is replaced by the no-LLM explanation that `app/fallback.py` writes from the tool results. The evaluation then reports both the first-draft grounding rate and the final one, and how many answers were repaired or replaced. Mocked-server tests cover all three paths. The weekly CI evaluation now runs a second pass with repair on and uploads it next to the gated run, so the first real numbers come from there. The grounding checker also learned that a result's confidence level implies its significance level (0.95 implies 5%). Rescoring the stored `evals/results.json` with it leaves the published 72.1% unchanged.
+**Grounding repair (optional, first real-model result below).** With `LLAMA_GROUNDING_REPAIR=1` the agent gives a flagged answer one rewrite with the offending numbers named. If the rewrite still carries a number no tool returned, the answer is replaced by the no-LLM explanation that `app/fallback.py` writes from the tool results. The evaluation then reports both the first-draft grounding rate and the final one, and how many answers were repaired or replaced. Mocked-server tests cover all three paths. The weekly CI evaluation runs a second pass with repair on. Its first run (2026-11-09, synthetic data, one run each, same runner and model) gave this:
+
+| | Repair off | Repair on |
+|---|---:|---:|
+| Every number in the answer found in tool output | 73.8% | **100%** |
+| Right function chosen first | 93.4% | 93.4% |
+| Right arguments | 95.1% | 95.1% |
+| Median seconds per answer | 31.8 | 33.4 |
+
+With repair on, 78.7% of first drafts were already grounded, 13 answers were rewritten and 4 of those were replaced by the code-written explanation. One run on synthetic data is indicative. The default stays off until the owner decides to switch it on. The grounding checker also learned that a result's confidence level implies its significance level (0.95 implies 5%). Rescoring the stored `evals/results.json` with it leaves the published 72.1% unchanged.
 
 What went wrong, from the recorded answers:
 
