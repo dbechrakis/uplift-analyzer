@@ -90,7 +90,9 @@ def run_agent(
     traces: list[ToolTrace] = []
     repair = client.settings.grounding_repair
     first_draft: list[str] | None = None
-    for _ in range(limit + (1 if repair else 0)):
+    rounds, done = limit, 0
+    while done < rounds:
+        done += 1
         text = ""
         calls: list[ToolCall] = []
         try:
@@ -115,6 +117,7 @@ def run_agent(
                     {"role": "user", "content": REPAIR_PROMPT.format(numbers=", ".join(flagged))}
                 )
                 yield AgentEvent("repair", text=final, unverified_numbers=flagged)
+                rounds += 1
                 continue
             replaced = bool(flagged and repair)
             if replaced:
