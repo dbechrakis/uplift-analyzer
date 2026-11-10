@@ -69,15 +69,15 @@ jobs:
         run: |
           .venv/bin/python -m app.evaluation --synthetic --sample-size 50000 --runs 1 \
             --output evals/ci-results.json --min-tool-accuracy 0.70 --min-answered 0.95
-      - name: Run evaluation with grounding repair switched on (reported, not gated)
+      - name: Run evaluation with grounding repair switched off (reported, not gated)
         env:
           LLAMA_BASE_URL: http://127.0.0.1:8080/v1
           LLAMA_MODEL_PATH: models/${{ env.MODEL_FILE }}
-          LLAMA_GROUNDING_REPAIR: "1"
+          LLAMA_GROUNDING_REPAIR: "0"
           PYTHONPATH: .
         run: |
           .venv/bin/python -m app.evaluation --synthetic --sample-size 50000 --runs 1 \
-            --output evals/ci-results-repair.json
+            --output evals/ci-results-norepair.json
       - name: Upload results (actions/upload-artifact v7.0.2)
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -85,7 +85,7 @@ jobs:
           name: llm-eval-results
           path: |
             evals/ci-results.json
-            evals/ci-results-repair.json
+            evals/ci-results-norepair.json
           if-no-files-found: ignore
       - name: Show server logs on failure
         if: failure()

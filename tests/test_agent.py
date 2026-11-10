@@ -72,7 +72,7 @@ def test_hallucinated_numbers_are_flagged(toolbox):
             lambda result: "Uplift is 777.7 percentage points.",
         )
     )
-    final = list(run_agent("q", toolbox, server.client()))[-1]
+    final = list(run_agent("q", toolbox, server.client(grounding_repair=False)))[-1]
     assert "777.7" in final.unverified_numbers
 
 
@@ -182,11 +182,31 @@ def responder_with_rewrite(first_answer, rewrite):
     return respond
 
 
-def test_repair_is_off_by_default_so_the_published_evaluation_still_applies(toolbox):
+def test_repair_is_on_by_default_and_can_be_switched_off(toolbox, monkeypatch):
+    from app.config import Settings
+
+    assert Settings().grounding_repair is True
+    monkeypatch.setenv("LLAMA_GROUNDING_REPAIR", "0")
+    assert Settings.from_env().grounding_repair is False
+    monkeypatch.delenv("LLAMA_GROUNDING_REPAIR")
+    assert Settings.from_env().grounding_repair is True
     server = MockLlmServer(responder_with_rewrite("Uplift is 777.7 points.", lambda r: "unused"))
-    events = list(run_agent("q", toolbox, server.client()))
+    events = list(run_agent("q", toolbox, server.client(grounding_repair=False)))
     assert "repair" not in kinds(events) and "777.7" in events[-1].unverified_numbers
     assert not events[-1].repaired and not events[-1].replaced_by_fallback
+
+
+def test_repair_adds_a_round_only_when_it_repairs(toolbox):
+    def never_answers(payload, n):
+        return sse(
+            *tool_call_chunks("average_treatment_effect", {"outcome": "visit"}, call_id=f"c{n}")
+        )
+
+    on = MockLlmServer(never_answers)
+    list(run_agent("q", toolbox, on.client(grounding_repair=True), max_iterations=2))
+    off = MockLlmServer(never_answers)
+    list(run_agent("q", toolbox, off.client(grounding_repair=False), max_iterations=2))
+    assert len(on.requests) == len(off.requests) == 2
 
 
 def test_a_rewrite_that_copies_the_tool_numbers_replaces_the_ungrounded_answer(toolbox):

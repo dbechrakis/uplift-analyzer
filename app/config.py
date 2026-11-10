@@ -14,7 +14,7 @@ class Settings:
     model_name: str = "local"
     timeout_seconds: float = 180.0
     max_iterations: int = 5
-    grounding_repair: bool = False
+    grounding_repair: bool = True
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -24,6 +24,6 @@ class Settings:
             model_name=os.environ.get("LLAMA_MODEL_NAME", "local"),
             timeout_seconds=float(os.environ.get("LLAMA_TIMEOUT_SECONDS", 180)),
             max_iterations=int(os.environ.get("LLAMA_MAX_ITERATIONS", 5)),
-            grounding_repair=os.environ.get("LLAMA_GROUNDING_REPAIR", "").lower()
-            in ("1", "true", "yes"),
+            grounding_repair=os.environ.get("LLAMA_GROUNDING_REPAIR", "1").lower()
+            not in ("0", "false", "no", "off"),
         )
