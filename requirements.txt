@@ -1058,9 +1058,9 @@ statsmodels==0.15.0 \
     --hash=sha256:edd803f4606061af8c7a83e2326ea294cbfa802a908dfbda4a88347301fb6820 \
     --hash=sha256:edee066ac9b171d95c3de925225331a21de1deb5b6452f252bc853e44566e72b
     # via -r requirements.in
-streamlit==1.66.1 \
-    --hash=sha256:29607190a589fe1fa9bd7e154635d335d47dc09b4010c6cc273daa6e4430ee31 \
-    --hash=sha256:7710a8b67469da7af7bf3503c9b68afca5676f832f62f9bda1221e0ce11941d1
+streamlit==1.67.0 \
+    --hash=sha256:58159dae1199212250bfa5fbba0740996129003266c2c37d465151ef76c48f3b \
+    --hash=sha256:f29da87c443bfbdfc52738616e3d65745d438e718da8faf69e2be0da1e52ce64
     # via -r requirements.in
 threadpoolctl==3.7.0 \
     --hash=sha256:61348cfb77d53b9242e0017029244b559b810c142ced65b4e21eeca1843959a7 \
