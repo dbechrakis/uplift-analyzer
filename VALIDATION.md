@@ -1,5 +1,7 @@
 # Validation record
 
+**Scope of the latest review.** Rerun in the review of 2026-11-14: the corrected Qini evaluation on the default sample (`outputs/dr_qini.json`), the unit tests and lint. Recorded history and not rerun in that review: the full-file validation pass in `outputs/validation.json`, and the language-model evaluation, which the weekly workflow repeats. Command: `make check`, then `PYTHONPATH=. python -m core.dr_scores`.
+
 Everything below was executed, not assumed. Numbers come from `outputs/validation.json` (reproduce with `make validate`), from the test suite, or from the commands named in each entry. Where verification found a defect, the defect and its fix are recorded.
 
 ## Data integrity and fidelity (2026-10-28)
@@ -102,3 +104,31 @@ The weekly LLM workflow ran both passes on the same runner with the real Qwen3 4
 ## Grounding repair switched on by default (2026-11-10)
 
 On the result above the owner chose to switch repair on. `Settings.grounding_repair` now defaults to true and `LLAMA_GROUNDING_REPAIR=0` turns it off. The weekly workflow now gates on the default and runs an ungated pass with repair off for comparison. Making it the default exposed a bug in the first version: the agent loop granted one extra tool round whenever repair was enabled, even when nothing was repaired, so a model that never answered got one round more than its cap. The extra round is now added only when a repair happens, and a test pins it. The published local evaluation (72.1% grounded, 3 runs, real data) was run without repair and is kept as recorded.
+
+## Qini scores corrected for imperfect randomization, design fixed before the run (2026-11-14)
+
+Written before any corrected score was computed. The effect estimates on the full file are corrected for the fact that assignment is slightly predictable from the features. The Qini curves, the learner comparison and the targeting policy still use raw outcomes. This section fixes how the correction is applied and read.
+
+- **Data and split.** The default sample (500,000 rows, seed 42), the same stratified 70/30 split, the T-learner at its current settings (`max_iter` 100). Outcomes: conversion and visit.
+- **Corrected score.** On the held-out 30%, doubly robust scores built from cross-fitted nuisance models. Five folds. The nuisance models are a classifier per arm for the outcome and a classifier for assignment, all `HistGradientBoostingClassifier` with `max_iter` 100 and the sample seed. The propensity is clipped to 0.01 and 0.99. The score of a user is mu1 minus mu0 plus the treated residual over the propensity minus the control residual over one minus the propensity.
+- **Corrected Qini curve.** Users ranked by the model's uplift score. The curve is the running sum of corrected scores times the treated share of the held-out users, so it has the same units as the raw curve. The coefficient is the area under it minus the area under the random line, as for the raw curve.
+- **Interval.** 200 bootstrap resamples of the held-out users with the scores held fixed, as the raw interval. The nuisance models are not refitted inside the bootstrap, so the interval omits their uncertainty. It is said so in the README.
+- **Reported.** The raw and the corrected Qini coefficient with their intervals for both outcomes, and the corrected minus the raw coefficient.
+- **How it is read.** If the raw coefficient lies outside the corrected interval, or the reverse, the imbalance matters for the model evaluation and the README says so. If each lies inside the other's interval, the README says the correction does not change the evaluation at this sample size. Nothing is retuned after the run, and the learner comparison and the policy keep their raw version until this result is known.
+- **Not done here.** A corrected learner comparison, a corrected policy value and any change to a tool description or to `SYSTEM_PROMPT`. Changing those would require rerunning `make eval`.
+
+### Result of the corrected Qini evaluation (same day)
+
+`python -m core.dr_scores` ran once as designed on the default sample (`outputs/dr_qini.json`).
+
+| Outcome | Raw coefficient (95% CI) | Corrected coefficient (95% CI) | Corrected minus raw |
+|---|---|---|---|
+| Visit | 531.0 (386.1 to 677.0) | 376.8 (234.9 to 517.4) | -154.2 |
+| Conversion | 48.7 (10.7 to 86.1) | 31.0 (-19.8 to 90.0) | -17.7 |
+
+- **Visit.** The raw coefficient lies outside the corrected interval and the corrected one lies outside the raw interval. By the rule fixed above, the imbalance matters for the model evaluation. The corrected coefficient is 29% lower and its interval still excludes zero.
+- **Conversion.** Each coefficient lies inside the other's interval, so the rule reads the difference as not established at this sample size. The corrected interval is wide and includes zero, which the raw interval did not.
+- The corrected interval holds the nuisance models fixed and is narrower than the true uncertainty. Corrected scores are noisier than raw ones because of the inverse propensity terms, so a wider interval is expected even without bias.
+- Tests: hand-computed scores, the propensity clip, recovery of the average effect and of an oracle Qini under imbalanced assignment in a simulation, units equal to the raw curve when assignment is random, and the exact dependence of a user's score on its own outcome.
+- Not changed: the learner comparison, the targeting policy, every tool description and `SYSTEM_PROMPT`. `make eval` was not rerun because nothing the model reads changed.
+
