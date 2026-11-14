@@ -1,5 +1,7 @@
 # Validation record
 
+**Scope of the latest review.** Rerun in the review of 2026-11-14: the corrected Qini evaluation on the default sample (`outputs/dr_qini.json`), the unit tests and lint. Recorded history and not rerun in that review: the full-file validation pass in `outputs/validation.json`, and the language-model evaluation, which the weekly workflow repeats. Command: `make check`, then `PYTHONPATH=. python -m core.dr_scores`.
+
 Everything below was executed, not assumed. Numbers come from `outputs/validation.json` (reproduce with `make validate`), from the test suite, or from the commands named in each entry. Where verification found a defect, the defect and its fix are recorded.
 
 ## Data integrity and fidelity (2026-10-28)
