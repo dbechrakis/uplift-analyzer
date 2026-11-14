@@ -97,6 +97,26 @@ class QiniResult(Serializable):
 
 
 @dataclass(frozen=True)
+class DoublyRobustQiniResult(Serializable):
+    outcome: str
+    data_source: str
+    n_train: int
+    n_test: int
+    folds: int
+    qini_raw: float
+    qini_raw_ci_low: float
+    qini_raw_ci_high: float
+    qini_corrected: float
+    qini_corrected_ci_low: float
+    qini_corrected_ci_high: float
+    difference: float
+    raw_inside_corrected_interval: bool
+    corrected_inside_raw_interval: bool
+    n_bootstrap: int
+    confidence_level: float
+
+
+@dataclass(frozen=True)
 class SrmResult(Serializable):
     data_source: str
     n_treated: int

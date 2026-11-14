@@ -1,0 +1,38 @@
+{
+  "conversion": {
+    "outcome": "conversion",
+    "data_source": "criteo",
+    "n_train": 350000,
+    "n_test": 150000,
+    "folds": 5,
+    "qini_raw": 48.69111838694904,
+    "qini_raw_ci_low": 10.675794854652729,
+    "qini_raw_ci_high": 86.0548597422384,
+    "qini_corrected": 30.97527447821828,
+    "qini_corrected_ci_low": -19.750714864478024,
+    "qini_corrected_ci_high": 89.96255870158893,
+    "difference": -17.71584390873076,
+    "raw_inside_corrected_interval": true,
+    "corrected_inside_raw_interval": true,
+    "n_bootstrap": 200,
+    "confidence_level": 0.95
+  },
+  "visit": {
+    "outcome": "visit",
+    "data_source": "criteo",
+    "n_train": 350000,
+    "n_test": 150000,
+    "folds": 5,
+    "qini_raw": 531.0407496926528,
+    "qini_raw_ci_low": 386.08511919646173,
+    "qini_raw_ci_high": 676.9805344548563,
+    "qini_corrected": 376.79665581719325,
+    "qini_corrected_ci_low": 234.88895403849696,
+    "qini_corrected_ci_high": 517.3540990570068,
+    "difference": -154.2440938754595,
+    "raw_inside_corrected_interval": false,
+    "corrected_inside_raw_interval": false,
+    "n_bootstrap": 200,
+    "confidence_level": 0.95
+  }
+}

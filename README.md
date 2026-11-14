@@ -48,7 +48,7 @@ All-users figures come from a streaming pass over the full file. Model-based res
 
 **2. Most of the effect lives in a few users.** On seven of the twelve features, 82% to 99% of users share a single default value. Where that group shows a significant effect, it is small (conversion +0.05 to +0.10 pp). Small groups with non-default values show much larger effects (up to about +5 pp on conversion in groups of a few thousand users, FDR-adjusted).
 
-**3. A model can find them.** The held-out Qini coefficient is 531 (95% CI 386 to 677) for visits and 49 (11 to 86) for conversions. For conversions, the model's top 10% of users captures 75% of all incremental conversions and the top 30% captures 88%. The simple two-model T-learner is not beaten: for conversions the S-learner is significantly worse, and no other learner differs significantly.
+**3. A model can find them.** The held-out Qini coefficient is 531 (95% CI 386 to 677) for visits and 49 (11 to 86) for conversions. For conversions, the model's top 10% of users captures 75% of all incremental conversions and the top 30% captures 88%. The simple two-model T-learner is not beaten: for conversions the S-learner is significantly worse, and no other learner differs significantly. **These Qini figures use the raw outcomes.** Corrected with doubly robust scores for the imbalance in assignment (`core/dr_scores.py`), the visit coefficient is 377 (95% CI 235 to 517) and the conversion coefficient is 31 (95% CI -20 to 90). The model still ranks users for visits. For conversions the corrected interval includes zero, so the evidence that the model finds responders is weaker than the raw figure says.
 
 **4. Targeting is a scenario, and the break-even is low.** Targeting everyone only pays when a contact costs less than 0.034 per user (value 30 per conversion). Below that, blanket targeting is profitable. Above it, only a model-selected subset is.
 
@@ -204,7 +204,7 @@ outputs/     validation.json from the full-data pass
 ## Limitations
 
 * **Benchmark, not a forecast.** The public file pools several incrementality tests and was sub-sampled non-uniformly by Criteo, so the true incrementality level cannot be recovered. Effect sizes must not be used to predict a real campaign.
-* **Randomization is imperfect.** Assignment is slightly predictable from the features. Adjustment corrects for observed features only. Unobserved imbalance would remain. Qini and policy results use the raw labels and inherit this.
+* **Randomization is imperfect.** Assignment is slightly predictable from the features. Adjustment corrects for observed features only. Unobserved imbalance would remain. The Qini curves above use the raw labels. A doubly robust correction lowers the visit coefficient from 531 to 377 and the conversion coefficient from 49 to 31, and its interval leaves out the uncertainty of the nuisance models. The learner comparison and the targeting policy have not been corrected.
 * **The complier analysis rests on an untestable assumption:** the ad affects users only through being exposed.
 * **The targeting profit is a scenario** with assumed value and cost, and the optimum is chosen on the same held-out users, so it is optimistic. A split-half check lost about 20% of the profit (see [VALIDATION.md](VALIDATION.md#limits-of-this-validation)). Targeting is not a claim about any real campaign.
 * **Samples, not the full data, drive the model results.** Segment groups with non-default feature values are small, so their intervals are wide.

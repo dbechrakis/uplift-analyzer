@@ -114,3 +114,19 @@ Written before any corrected score was computed. The effect estimates on the ful
 - **Reported.** The raw and the corrected Qini coefficient with their intervals for both outcomes, and the corrected minus the raw coefficient.
 - **How it is read.** If the raw coefficient lies outside the corrected interval, or the reverse, the imbalance matters for the model evaluation and the README says so. If each lies inside the other's interval, the README says the correction does not change the evaluation at this sample size. Nothing is retuned after the run, and the learner comparison and the policy keep their raw version until this result is known.
 - **Not done here.** A corrected learner comparison, a corrected policy value and any change to a tool description or to `SYSTEM_PROMPT`. Changing those would require rerunning `make eval`.
+
+### Result of the corrected Qini evaluation (same day)
+
+`python -m core.dr_scores` ran once as designed on the default sample (`outputs/dr_qini.json`).
+
+| Outcome | Raw coefficient (95% CI) | Corrected coefficient (95% CI) | Corrected minus raw |
+|---|---|---|---|
+| Visit | 531.0 (386.1 to 677.0) | 376.8 (234.9 to 517.4) | -154.2 |
+| Conversion | 48.7 (10.7 to 86.1) | 31.0 (-19.8 to 90.0) | -17.7 |
+
+- **Visit.** The raw coefficient lies outside the corrected interval and the corrected one lies outside the raw interval. By the rule fixed above, the imbalance matters for the model evaluation. The corrected coefficient is 29% lower and its interval still excludes zero.
+- **Conversion.** Each coefficient lies inside the other's interval, so the rule reads the difference as not established at this sample size. The corrected interval is wide and includes zero, which the raw interval did not.
+- The corrected interval holds the nuisance models fixed and is narrower than the true uncertainty. Corrected scores are noisier than raw ones because of the inverse propensity terms, so a wider interval is expected even without bias.
+- Tests: hand-computed scores, the propensity clip, recovery of the average effect and of an oracle Qini under imbalanced assignment in a simulation, units equal to the raw curve when assignment is random, and the exact dependence of a user's score on its own outcome.
+- Not changed: the learner comparison, the targeting policy, every tool description and `SYSTEM_PROMPT`. `make eval` was not rerun because nothing the model reads changed.
+
