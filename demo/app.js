@@ -168,6 +168,19 @@
     $("design-metrics").innerHTML = html; $("design-text").textContent = text;
   }
 
+  function renderPeeking() {
+    var P = D.peeking;
+    if (!P) { $("peeking").style.display = "none"; return; }
+    var looks = +$("looks").value, s = Peeking.series(P, looks);
+    Plotly.react("chart-peeking", [
+      { type: "bar", x: s.rules, y: s.falsePositive.map(function (v) { return v * 100; }), name: "False positives (%)", marker: { color: token("--control") } },
+      { type: "bar", x: s.rules, y: s.power.map(function (v) { return v * 100; }), name: "Power at a 5% lift (%)", marker: { color: token("--good") } }
+    ], layout({ barmode: "group", yaxis: { title: "Share of experiments (%)", gridcolor: token("--line") }, legend: { orientation: "h", y: -0.25 }, height: 340,
+      shapes: [{ type: "line", xref: "paper", x0: 0, x1: 1, y0: 5, y1: 5, line: { dash: "dot", color: token("--line") } }] }), CFG);
+    $("peeking-text").textContent = "At " + looks + " looks, peek rejects " + pct(s.falsePositive[1], 1) + " of null experiments against a nominal 5%. Replay of " + num(P.replications) +
+      " null experiments with " + num(P.n_arm) + " users per arm. Arrival order is random, so there is no weekday or novelty pattern.";
+  }
+
   function renderValidation() {
     var s = D.sampling_validation, c = D.code_simulations;
     $("validation-text").innerHTML = "<ul><li>The file matches its published SHA-256 and row count, and reproduces the dataset card's treatment ratio, visit rate and conversion rate.</li>" +
@@ -183,7 +196,9 @@
     D = data;
     var sel = $("feature");
     Object.keys(D.outcomes.conversion.segments).forEach(function (f) { var op = document.createElement("option"); op.value = f; op.textContent = f; sel.appendChild(op); });
-    renderNotice(); renderTrust(); renderValidation(); renderAll();
+    if (D.peeking) D.peeking.looks.forEach(function (k) { var op = document.createElement("option"); op.value = k; op.textContent = k; $("looks").appendChild(op); });
+    renderNotice(); renderTrust(); renderValidation(); renderAll(); renderPeeking();
+    $("looks").addEventListener("change", renderPeeking);
     $("outcome").addEventListener("change", function (e) { outcome = e.target.value; renderAll(); });
     $("feature").addEventListener("change", renderSegments);
     ["audience", "value", "cost"].forEach(function (id) { $(id).addEventListener("input", renderPolicy); });

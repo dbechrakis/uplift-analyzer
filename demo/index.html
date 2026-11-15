@@ -41,6 +41,10 @@
       <label>Treated share <input type="range" id="share" min="5" max="95" value="50" step="5"><span id="share-out" class="small">50%</span></label>
     </div>
     <div class="metrics" id="design-metrics"></div><p id="design-text" class="small"></p></section>
+  <section id="peeking"><h2>8. What would watching the test every day have cost?</h2>
+    <p class="small">The control group was split at random into two fake arms of 50,000 users, 5,000 times, so every rejection is false. Each rule looks at the data a set number of times.</p>
+    <div class="bar"><label>Number of looks<select id="looks"></select></label></div>
+    <div class="chart" id="chart-peeking"></div><p id="peeking-text" class="small"></p></section>
   <section id="validation"><h2>How this was checked</h2><div id="validation-text"></div></section>
 </main>
 <footer>
@@ -49,6 +53,7 @@
 </footer>
 <script src="vendor/plotly-basic.min.js"></script>
 <script src="power.js"></script>
+<script src="peeking.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

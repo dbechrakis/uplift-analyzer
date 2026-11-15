@@ -84,13 +84,54 @@ def build_demo_data(
     return out
 
 
+def peeking_data(sequential_path: Path) -> dict:
+    record = json.loads(sequential_path.read_text())
+    rows = [r for r in record["rows"] if r["outcome"] == "visit" and r["adjustment"] == "none"]
+    rules = ["fixed", "peek", "bonferroni", "pocock", "obf", "msprt"]
+    looks = record["look_counts"]
+
+    def table(lift: float) -> dict:
+        return {
+            rule: {
+                str(k): next(
+                    r["rejection_rate"]
+                    for r in rows
+                    if r["rule"] == rule and r["n_looks"] == k and r["injected_lift"] == lift
+                )
+                for k in looks
+            }
+            for rule in rules
+        }
+
+    return {
+        "data_source": "criteo",
+        "n_arm": record["n_arm"],
+        "replications": record["null_replications"],
+        "looks": looks,
+        "rules": rules,
+        "false_positive": table(0.0),
+        "power_at_5_percent_lift": table(0.05),
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Export aggregate results for the static demo")
     parser.add_argument("--output", default="demo/data.json")
     parser.add_argument("--sample-size", type=int, default=500_000)
     parser.add_argument("--validation", default="outputs/validation.json")
+    parser.add_argument("--sequential", default="outputs/sequential.json")
+    parser.add_argument("--peeking-only", action="store_true")
     args = parser.parse_args()
+    if args.peeking_only:
+        target = Path(args.output)
+        data = json.loads(target.read_text())
+        data["peeking"] = peeking_data(Path(args.sequential))
+        target.write_text(json.dumps(data, separators=(",", ":")))
+        print(f"added peeking to {args.output}")
+        return
     data = build_demo_data(args.sample_size, default_seed(), Path(args.validation))
+    if Path(args.sequential).exists():
+        data["peeking"] = peeking_data(Path(args.sequential))
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     Path(args.output).write_text(json.dumps(data, separators=(",", ":")))
     print(f"wrote {args.output} ({Path(args.output).stat().st_size // 1024} KB)")
