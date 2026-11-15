@@ -54,6 +54,30 @@ All-users figures come from a streaming pass over the full file. Model-based res
 
 **5. Detecting a 10% relative conversion lift at the original 85% treated share would need about 3.35 million users.** The observed +59% is far easier to detect than the lifts most real tests chase.
 
+**6. Watching a test every day would have cost far more than a few extra looks.** To measure it, the control group of the full file was split at random into two fake arms of 50,000 users, 5,000 times. The true effect is exactly zero, so every rejection is false. `peek` is the z test applied at every look. The last column is power when a 5% relative lift is added to the visit rate, at 20 looks.
+
+| Rule | False positives at 5 looks | at 20 looks | at 200 looks | Power at a 5% lift, 20 looks |
+|---|---|---|---|---|
+| `fixed` | 5.4% | 5.4% | 5.4% | 33.3% |
+| `peek` | 14.7% | 25.5% | 43.2% | 53.3% |
+| `bonferroni` | 3.5% | 1.9% | 0.4% | 13.2% |
+| `pocock` | 5.3% | 5.3% | 5.0% | 22.0% |
+| `obf` | 5.7% | 5.5% | 5.7% | 31.0% |
+| `msprt` | 0.7% | 1.2% | 1.7% | 11.8% |
+
+Peeking at 20 looks declares a winner in about one experiment in four when there is none. The group sequential rules `pocock` and `obf` hold the 5% level, and `msprt` and `bonferroni` hold it by being conservative, at the price of power. Early winners overstate the effect: at a true 5% lift the early winners of `peek` estimate 15.1% at 20 looks. **Three of the eight graded expectations failed.** `obf` rejected 5.66% at 5 looks, just above its 5.6% band. At the 5% lift `obf` stopped early in at most 30.3% of experiments, not more than half. The CUPED variance saving was 23.6%, not within 3 points of 19.5%. Q9 carried no prediction. See [VALIDATION.md](VALIDATION.md#sequential-testing-replay-result-2026-11-15) for every expectation and [docs/sequential-method.md](docs/sequential-method.md) for the rules.
+
+The real test, replayed once in random arrival order at 20 looks on the 500,000 sample, is an illustration of one path. Its final visit estimate is +1.19 pp. The effect is large, so every rule stops early.
+
+| Rule | Stops at look | Share of sample | Estimate at the stop |
+|---|---|---|---|
+| `fixed` | 20 of 20 | 100% | +1.19 pp |
+| `peek` | 1 of 20 | 5% | +1.07 pp |
+| `bonferroni` | 1 of 20 | 5% | +1.07 pp |
+| `pocock` | 1 of 20 | 5% | +1.07 pp |
+| `obf` | 3 of 20 | 15% | +1.23 pp |
+| `msprt` | 3 of 20 | 15% | +1.23 pp |
+
 | Segments | Qini and learners |
 |---|---|
 | ![Segments](docs/screenshots/segments.png) | ![Qini](docs/screenshots/qini.png) |
@@ -140,6 +164,8 @@ Open http://127.0.0.1:8501. The containers cannot reach the internet, so fetch t
 | `targeting_policy` | best targeting share and profit for a value and cost scenario, with a bootstrap interval |
 | `required_sample_size` / `minimum_detectable_effect` | users needed for a relative lift, or the lift a sample can detect |
 | `dataset_summary` | row count, treated share, base rates |
+| `core/sequential.py` | stopping rules for a running test (`fixed`, `peek`, `bonferroni`, `pocock`, `obf`, `msprt`), confidence sequences and CUPED. Not a language-model tool |
+| `core/replay.py` | draws fake two-arm experiments from the control pool, injects a known lift and builds cumulative sums for every look. Not a language-model tool |
 
 Every function returns a frozen dataclass that is JSON serializable and carries a `data_source` field (`criteo`, `synthetic`, `constructed`).
 
@@ -191,13 +217,13 @@ Verified on a running stack, not just written down:
 ## Project layout
 
 ```
-core/        data, effects, balance, CACE, segments, Qini, learners, policy, power, validation, demo export
+core/        data, effects, balance, CACE, segments, Qini, learners, policy, power, sequential testing and replay, validation, demo export
 app/         Streamlit UI, llama.cpp client, tool definitions, agent loop, evaluation harness
 demo/        static explorer for GitHub Pages (aggregate data only)
 deploy/      Dockerfile, docker-compose, nginx config, model fetch script
 tests/       offline tests: known answers, simulations, statsmodels equivalence, mocked LLM server
 evals/       61 tool-selection cases and recorded runs
-outputs/     validation.json from the full-data pass
+outputs/     validation.json from the full-data pass, sequential.json from the replay (`make sequential`)
 .github/     CI, Pages, LLM evaluation, Dependabot
 ```
 
@@ -209,6 +235,7 @@ outputs/     validation.json from the full-data pass
 * **The targeting profit is a scenario** with assumed value and cost, and the optimum is chosen on the same held-out users, so it is optimistic. A split-half check lost about 20% of the profit (see [VALIDATION.md](VALIDATION.md#limits-of-this-validation)). Targeting is not a claim about any real campaign.
 * **Samples, not the full data, drive the model results.** Segment groups with non-default feature values are small, so their intervals are wide.
 * **Small-model caveats.** A 4B local model can pick a different but defensible tool, skip a tool call, or misstate a number. The grounding check catches numbers absent from tool output but not wrong interpretations of correct numbers. In the screenshot above the model called the right tool with the right arguments, then described the break-even cost slightly loosely. It is slow on CPU (tens of seconds per answer). The evaluation has 61 questions and indicates behaviour. It is not a benchmark.
+* **The peeking replay has limits.** Arrival order is random, so it has no weekday or novelty pattern. It covers one dataset and one family of rare binary outcomes. The covariate for CUPED is a model prediction and not a pre-period outcome, so the saving shown is a lower bound for a product with user history. Experiments are drawn from one pool and share users across replications. Each experiment is valid on its own, and the Monte Carlo intervals are slightly too narrow.
 * The uplift learners use default hyperparameters. They are baselines, not tuned production models.
 * The app has no authentication. Keep it bound to localhost.
 
