@@ -148,6 +148,43 @@ def load_criteo_sample(
     return df
 
 
+CONTROL_POOL_FILENAME = "criteo_control_pool.parquet"
+
+
+def control_pool_path(directory: Path | None = None) -> Path:
+    return (directory or data_dir()) / "cache" / CONTROL_POOL_FILENAME
+
+
+def _read_control_pool(path: Path, expected_rows: int) -> pd.DataFrame:
+    parts: list[pd.DataFrame] = []
+    total = 0
+    with gzip.open(path, "rt") as handle:
+        for chunk in pd.read_csv(handle, dtype=DTYPES, chunksize=CHUNK_ROWS):
+            total += len(chunk)
+            parts.append(chunk[chunk["treatment"] == 0])
+    if total != expected_rows:
+        raise DatasetIntegrityError(f"Expected {expected_rows} rows, found {total}")
+    return pd.concat(parts, ignore_index=True)
+
+
+def load_control_pool(directory: Path | None = None) -> pd.DataFrame:
+    cached = control_pool_path(directory)
+    if cached.exists():
+        df = pd.read_parquet(cached)
+    else:
+        source = raw_path(directory)
+        if not source.exists():
+            raise DatasetNotFoundError(manual_download_instructions(directory))
+        if sha256_of(source) != DATASET_SHA256:
+            raise DatasetIntegrityError("The raw file failed the SHA-256 check")
+        df = _read_control_pool(source, DATASET_ROWS)
+        cached.parent.mkdir(parents=True, exist_ok=True)
+        df.to_parquet(cached, index=False)
+    validate_schema(df)
+    df.attrs["data_source"] = "criteo"
+    return df
+
+
 @dataclass(frozen=True)
 class DatasetInfo:
     rows: int
