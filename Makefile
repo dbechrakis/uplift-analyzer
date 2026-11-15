@@ -1,7 +1,7 @@
 PY := .venv/bin/python
 COMPOSE := docker compose -f deploy/docker-compose.yml
 
-.PHONY: install lock lint test check run report validate export-demo audit eval fetch-model docker-up docker-up-llm docker-down
+.PHONY: install lock lint test check run report validate export-demo sequential audit eval fetch-model docker-up docker-up-llm docker-down
 
 install:
 	uv venv --python 3.12 .venv
@@ -32,6 +32,9 @@ validate:
 
 export-demo:
 	PYTHONPATH=. $(PY) -m core.export_demo
+
+sequential:
+	PYTHONPATH=. $(PY) -m core.sequential_study
 
 audit:
 	uv venv .audit
