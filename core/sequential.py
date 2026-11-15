@@ -164,9 +164,10 @@ def spending_boundaries(
 def msprt_log_likelihood_ratio(
     diff: np.ndarray, se: np.ndarray, mixing_variance: float
 ) -> np.ndarray:
-    v = se**2
+    v = np.where(se > 0, se**2, 1.0)
     total = v + mixing_variance
-    return 0.5 * np.log(v / total) + mixing_variance * diff**2 / (2 * v * total)
+    log_lr = 0.5 * np.log(v / total) + mixing_variance * diff**2 / (2 * v * total)
+    return np.where(se > 0, log_lr, 0.0)
 
 
 def msprt_p_values(diff: np.ndarray, se: np.ndarray, mixing_variance: float) -> np.ndarray:
@@ -182,7 +183,7 @@ def confidence_sequence(
 ) -> tuple[np.ndarray, np.ndarray]:
     if mixing_variance <= 0:
         raise ValueError("mixing_variance must be positive")
-    v = se**2
+    v = np.maximum(se**2, 1e-300)
     total = v + mixing_variance
     radius = np.sqrt(v * total / mixing_variance * (2 * np.log(1 / alpha) + np.log(total / v)))
     return diff - radius, diff + radius

@@ -149,3 +149,14 @@ def test_unequal_arms_use_their_own_counts():
         np.array([200.0]),
     )
     assert z[0] == pytest.approx(diff[0] / se[0])
+
+
+def test_msprt_treats_a_zero_standard_error_as_no_evidence():
+    diff = np.array([[0.0, 0.0, 0.2, 0.2]])
+    se = np.array([[0.0, 0.0, 0.05, 0.04]])
+    p = msprt_p_values(diff, se, 0.01)
+    assert np.all(np.isfinite(p))
+    assert p[0, 0] == 1.0 and p[0, 1] == 1.0
+    assert p[0, 3] < 0.05
+    low, high = confidence_sequence(diff, se, 0.01)
+    assert np.all(np.isfinite(low)) and np.all(np.isfinite(high))
