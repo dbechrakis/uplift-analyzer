@@ -132,3 +132,54 @@ Written before any corrected score was computed. The effect estimates on the ful
 - Tests: hand-computed scores, the propensity clip, recovery of the average effect and of an oracle Qini under imbalanced assignment in a simulation, units equal to the raw curve when assignment is random, and the exact dependence of a user's score on its own outcome.
 - Not changed: the learner comparison, the targeting policy, every tool description and `SYSTEM_PROMPT`. `make eval` was not rerun because nothing the model reads changed.
 
+
+## Sequential testing replay, design fixed before it was run (2026-11-15)
+
+Written before any replay was run on the real file. The design below is the full design of the replay.
+
+**Question.** If someone had watched a test every day, how often would each stopping rule have declared a winner that was not there, and what does each honest rule cost in sample?
+
+**Data.**
+
+- Pool: every control row of the full Criteo file, about 2.1 million of the 13,979,592 rows. It is streamed in chunks, keeps rows with `treatment == 0`, and is cached as `data/cache/criteo_control_pool.parquet`. The default sample of 500,000 rows and the default seed 42 do not change for any existing result.
+- Primary outcome: `visit`. Secondary outcome: `conversion`, reported in the same tables.
+- An experiment is a draw of 2 times `n_arm` rows from the pool without replacement. The first half is arm A and the second half is arm B. Rows arrive in the drawn order. The file has no timestamps, so arrival order is random by construction.
+- Covariate for CUPED: the file has no pre-period outcome. The covariate is a model prediction of the outcome from the twelve features. It is fitted on a fixed 20% of the pool (row index modulo 5 equal to 0). Experiments draw only from the other 80%.
+- Data source labels: null experiments carry `criteo`. Experiments with an injected effect carry `constructed`. Tests carry `synthetic`.
+
+**Rules compared.** All at a two-sided level of 0.05 on the difference in means.
+
+| Rule | What it does |
+|---|---|
+| `fixed` | One test at the planned end. The reference. |
+| `peek` | The fixed-horizon z test at every look. Stops at the first p below 0.05. |
+| `bonferroni` | The same test at level 0.05 divided by the number of looks. |
+| `pocock` | Group sequential, constant boundary. |
+| `obf` | Group sequential, O'Brien-Fleming boundary through Lan-DeMets spending. |
+| `msprt` | Mixture sequential probability ratio test with a normal mixing distribution. Valid at any number of looks. |
+
+Each rule is run without adjustment and with the CUPED-adjusted outcome.
+
+**Grid.**
+
+- `n_arm` is 50,000.
+- Looks: 5 equally spaced, 20 equally spaced, and 200 equally spaced (every 250 users per arm, standing in for continuous monitoring).
+- Replications: 5,000 null experiments with seeds derived from `numpy.random.SeedSequence(42).spawn(5000)`.
+- Injected effects: relative lifts of 2%, 5% and 10% on the visit rate, 2,000 replications each. The injection turns a zero into a one in arm B with the probability that gives the stated lift exactly in expectation.
+- `msprt` mixing variance: the squared absolute effect that the fixed test at `n_arm` detects with 80% power, computed by `core.power`. It is fixed before the run and not tuned.
+
+**Expectations.**
+
+- Q1. `fixed` has a false positive rate between 4.4% and 5.6% on the null experiments. The band is 5% plus or minus two Monte Carlo standard errors at 5,000 replications.
+- Q2. `peek` has a false positive rate above 12% at 5 looks, above 20% at 20 looks and above 30% at 200 looks.
+- Q3. `pocock` and `obf` are between 4.4% and 5.6% at 5 and at 20 looks.
+- Q4. `msprt` is at or below 5.6% at every number of looks, and below 5% at 200 looks.
+- Q5. `bonferroni` is at or below 5.6% and below `obf` in power at every injected lift.
+- Q6. At the 5% lift, `obf` stops before the planned end in more than half of the experiments, and its average sample is smaller than the fixed sample.
+- Q7. Among experiments that stop early for a winner at the 5% lift, the average estimated lift is above the true lift for `peek`, `pocock` and `obf`.
+- Q8. The variance saving of the CUPED-adjusted `visit` outcome is within 3 percentage points of 19.5%. That figure is one minus the squared ratio of 0.000131255 to 0.000146316, the adjusted and unadjusted standard errors of the visit effect in `outputs/validation.json`. The covariate model is a logistic regression on the twelve features with default settings. A saving outside the band is reported as a failed expectation in either direction.
+- Q9. No prediction on whether CUPED changes any false positive rate. Reported either way.
+
+**What counts.** Each expectation is graded passed or failed by its own rule from `outputs/sequential.json`. Nothing is rerun with other settings after the first run. A failed expectation is reported in the README next to the passed ones.
+
+**Not claimed.** That arrival order resembles real traffic. That results transfer to a metric with a heavy tail. That the pool is a random sample of anything beyond the Criteo control group.
