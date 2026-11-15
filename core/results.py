@@ -316,3 +316,22 @@ class PropensityResult(Serializable):
         "Hajek inverse-propensity weighting with cross-fitted gradient-boosting propensities. "
         "Linearized standard error that treats the propensity as known (conservative)."
     )
+
+
+@dataclass(frozen=True)
+class SequentialRuleResult(Serializable):
+    rule: str
+    adjustment: str
+    outcome: str
+    data_source: str
+    n_looks: int
+    injected_lift: float
+    n_experiments: int
+    n_arm: int
+    rejection_rate: float
+    rejection_ci_low: float
+    rejection_ci_high: float
+    mean_stop_n_per_arm: float
+    median_stop_n_per_arm: float
+    share_stopped_early: float
+    mean_lift_early_winners: float | None
